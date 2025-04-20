@@ -6,7 +6,7 @@ socket_path = "/tmp/pico_serial_handler.socket"
 context = zmq.Context()
 socket = context.socket(zmq.SUB)
 socket.connect(f"ipc://{socket_path}")
-socket.setsockopt_string(zmq.SUBSCRIBE, "test_topic2")
+socket.setsockopt_string(zmq.SUBSCRIBE, "pico/accel")
 
 while True:
     topic, data = socket.recv_multipart()

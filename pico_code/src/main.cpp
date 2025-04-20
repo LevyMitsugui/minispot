@@ -80,19 +80,27 @@ void loop() {
     accel_mps2_y = ay * 0.000061035f * 9.80665f;
     accel_mps2_z = az * 0.000061035f * 9.80665f;
   
-    Serial.print(((float)pico_time)/1000, 3);
-    Serial.print("\t");
-    Serial.print(gx);
-    Serial.print("\t");
-    Serial.print(gy);
-    Serial.print("\t");
-    Serial.print(gz);
-    Serial.print("\t");
-    Serial.print(accel_mps2_x );
-    Serial.print("\t");
-    Serial.print(accel_mps2_y);
-    Serial.print("\t");
-    Serial.println(accel_mps2_z);
+    String topic = "pico/accel";
+    String line = topic + ":" + String(pico_time) + "," + String(accel_mps2_x, 3) + "," + String(accel_mps2_y, 3) + "," + String(accel_mps2_z, 3) + "\n";
+    Serial.write(line.c_str(), line.length());
+
+    // Serial.print("pico/accel:");
+    // Serial.print(((float)pico_time)/1000, 3);
+    // Serial.print(",");
+    // Serial.print(accel_mps2_x );
+    // Serial.print(",");
+    // Serial.print(accel_mps2_y);
+    // Serial.print(",");
+    // Serial.print(accel_mps2_z);
+    // Serial.print("\n");
+
+    
+    // Serial.print(gx);
+    // Serial.print("\t");
+    // Serial.print(gy);
+    // Serial.print("\t");
+    // Serial.print(gz);
+    // Serial.print("\t");
   }
 
   if ((pico_time - prev_time_debug) > cycle_debug) {//TODO fix this

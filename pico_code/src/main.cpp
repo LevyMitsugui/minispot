@@ -17,6 +17,7 @@ long cycle = 10;	// cycle period in milliseconds
 long prev_time_debug = 0;
 long cycle_debug = 80;
 bool error_state = false;
+bool serial_connected = false;
 
 bool led_state = false;
 int led_count = 0;
@@ -30,6 +31,7 @@ float accel_mps2_x = 0, accel_mps2_y = 0, accel_mps2_z = 0;
 
 void morse_serial_down();
 void morse_error();
+void log_message(String message);
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -38,12 +40,17 @@ void setup() {
   while (!Serial){
     morse_serial_down();
   }
+
+  log_message("PICO connected to serial port");
+  serial_connected = true;
+  
   for(int i=0; i<2; i++){
     digitalWrite(LED_BUILTIN, HIGH);
     delay(80);
     digitalWrite(LED_BUILTIN, LOW);
     delay(80);
-    }
+  }
+  pico_time = millis();
   
   pinMode(25, OUTPUT); // Onboard LED
 
@@ -53,16 +60,25 @@ void setup() {
  
 
   if (!BMI160.begin(BMI160GenClass::I2C_MODE, i2c_addr)) {
-    Serial.println("BMI160 initialization failed!");
+    log_message("BMI160 initialization failed");
     while (1); // Halt if initialization fails
   }
- 
-  Serial.println("BMI160 initialized successfully in I2C mode!");
+
+  log_message("BMI160 initialization successfully in I2C mode");
 }
  
 void loop() {
   while(!Serial){
+    if(serial_connected){
+      serial_connected = false;
+      log_message("PICO disconnected from serial port");
+    }
     morse_serial_down();
+  }
+
+  if(!serial_connected){
+    serial_connected = true;
+    log_message("PICO reconnected to serial port");
   }
 
   if(error_state){
@@ -114,6 +130,11 @@ void loop() {
       cycle_debug = 80;
     }
   }
+}
+void log_message(String message){
+  pico_time = millis();
+  String message2 = "pico/log:" + String(pico_time)+ "," + message + "\n";
+  Serial.write(message2.c_str(), message2.length());
 }
 
 void morse_serial_down(){

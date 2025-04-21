@@ -2,19 +2,23 @@ import sys
 import os
 import zmq
 import msgpack
+import argparse
 from PICOSerialHandler import PICOSerialHandler
 
 
 def parse_args():
-    if len(sys.argv) < 3:
-        print("Usage: python main.py <port> <baudrate>")
+    parser = argparse.ArgumentParser(description="Read and publish data from Pico Serial Handler.")
+    parser.add_argument("port", help="Serial port to use (e.g., /dev/ttyACM0)")
+    parser.add_argument("baudrate", type=int, help="Baudrate for serial communication")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
+
+    args = parser.parse_args()
+
+    if not os.path.exists(args.port):
+        print(f"Error: The specified port '{args.port}' does not exist.")
         sys.exit(1)
-    port = sys.argv[1]
-    baudrate = int(sys.argv[2])
-    if not os.path.exists(port):
-        print(f"Error: The specified port '{port}' does not exist.")
-        sys.exit(1)
-    return port, baudrate
+
+    return args
 
 
 def setup_zmq_socket(socket_path="/tmp/pico_serial_handler.socket"):
@@ -26,10 +30,11 @@ def setup_zmq_socket(socket_path="/tmp/pico_serial_handler.socket"):
     return context, socket
 
 
-def publish_data(socket):
+def publish_data(socket, verbose=False):
     def _callback(topic: str, data: list):
         try:
-            print(f"Publishing to '{topic}': {data}")
+            if verbose:
+                print(f"Publishing to '{topic}': {data}")
             socket.send_multipart([topic.encode(), msgpack.packb(data)])
         except zmq.ZMQError as e:
             print(f"[ZMQ Error] {e}")
@@ -37,14 +42,16 @@ def publish_data(socket):
 
 
 def main():
-    port, baudrate = parse_args()
-    handler = PICOSerialHandler(port, baudrate)
+    args = parse_args()
+    handler = PICOSerialHandler(args.port, args.baudrate, verbose=args.verbose)
     context, socket = setup_zmq_socket()
 
     try:
-        print("Starting PICOSerialHandler...")
+        if args.verbose:
+            print("Starting PICOSerialHandler...")
+
         handler.open()
-        handler.set_callback(publish_data(socket))
+        handler.set_callback(publish_data(socket, verbose=args.verbose))
         handler.read_loop()
 
     except KeyboardInterrupt:
@@ -54,12 +61,14 @@ def main():
         print(f"[Error] {e}")
 
     finally:
-        print("Cleaning up...")
+        if args.verbose:
+            print("Cleaning up...")
         if handler.is_open:
             handler.close()
         socket.close()
         context.term()
-        print("Cleanup complete. Goodbye!")
+        if args.verbose:
+            print("Cleanup complete. Goodbye!")
 
 
 if __name__ == "__main__":

@@ -82,7 +82,7 @@ private:
     // time elapsed since last servo update
     double last_actuated = 0.0;
     // error threshold for servo position
-    double error_threshold = 0.1;
+    double error_threshold = 1;
     // maximum servo angle (minimum is 0)
     double control_range = 360.0; //vai de -180 a 180
     // loop period (milisec)

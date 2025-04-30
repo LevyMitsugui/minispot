@@ -1,46 +1,49 @@
 /* 
- * -----------------------------------------------------------------------------
- * Example: Two way communication between ESP32 and Python using WIFI
- * -----------------------------------------------------------------------------
- * Author: Radhi SGHAIER: https://github.com/Rad-hi
- * -----------------------------------------------------------------------------
- * Date: 07-05-2023 (7th of May, 2023)
- * -----------------------------------------------------------------------------
- * License: Do whatever you want with the code ...
- *          If this was ever useful to you, and we happened to meet on 
- *          the street, I'll appreciate a cup of dark coffee, no sugar please.
- * -----------------------------------------------------------------------------
- */
+* -----------------------------------------------------------------------------
+* Example: Two way communication between ESP32 and Python using WIFI
+* -----------------------------------------------------------------------------
+* Author: Radhi SGHAIER: https://github.com/Rad-hi
+* -----------------------------------------------------------------------------
+* Date: 07-05-2023 (7th of May, 2023)
+* -----------------------------------------------------------------------------
+* License: Do whatever you want with the code ...
+*          If this was ever useful to you, and we happened to meet on 
+*          the street, I'll appreciate a cup of dark coffee, no sugar please.
+* -----------------------------------------------------------------------------
+*/
 
 
- #include "config.h"
- #include <Kinematics.hpp>
- #include <MyButton.h>
- #include "SpotServo.hpp"
- #include <Utilities.hpp>
- #include "Spot.hpp"
- #include <cstring>
- 
- // #define CONFIG_FREERTOS_USE_TRACE_FACILITY              1
- // #define CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS  1
- 
- // the uart used to control servos.
- // GPIO 18 - S_RXD, GPIO 19 - S_TXD, as default.
- #define S_RXD 18
- #define S_TXD 19
- 
- // the IIC used to control OLED screen.
- // GPIO 21 - S_SDA, GPIO 22 - S_SCL, as default.
- #define S_SCL 22
- #define S_SDA 21
- 
- #if CONFIG_FREERTOS_UNICORE
- #define ARDUINO_RUNNING_CORE 0
- #else
- #define ARDUINO_RUNNING_CORE 1
- #endif
- 
- bool SERIAL_FORWARDING = false;
+#include "config.h"
+#include <Kinematics.hpp>
+#include <MyButton.h>
+#include "SpotServo.hpp"
+#include <Utilities.hpp>
+#include "Spot.hpp"
+#include <cstring>
+
+// #define CONFIG_FREERTOS_USE_TRACE_FACILITY              1
+// #define CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS  1
+
+// the uart used to control servos.
+// GPIO 18 - S_RXD, GPIO 19 - S_TXD, as default.
+#define S_RXD 18
+#define S_TXD 19
+
+// the IIC used to control OLED screen.
+// GPIO 21 - S_SDA, GPIO 22 - S_SCL, as default.
+#define S_SCL 22
+#define S_SDA 21
+
+#if CONFIG_FREERTOS_UNICORE
+#define ARDUINO_RUNNING_CORE 0
+#else
+#define ARDUINO_RUNNING_CORE 1
+#endif
+
+#define PRINT false
+
+
+bool SERIAL_FORWARDING = false;
  
  
  // set the max ID.
@@ -208,11 +211,27 @@
  }
  
  
- bool all_goals_reached()
- {
- 
-   return true;
- }
+bool all_goals_reached(){
+  //int pos = 2047 + ((goal_pose + offset) / 0.087912); //converts angle from degrees to pulses
+  
+  if (FL_Shoulder.GoalReached() &&
+      FL_Elbow.GoalReached() &&
+      FL_Wrist.GoalReached() &&
+      FR_Shoulder.GoalReached() &&
+      FR_Elbow.GoalReached() &&
+      FR_Wrist.GoalReached() &&
+      RL_Shoulder.GoalReached() &&
+      RL_Elbow.GoalReached() &&
+      RL_Wrist.GoalReached() &&
+      RR_Shoulder.GoalReached() &&
+      RR_Elbow.GoalReached() &&
+      RR_Wrist.GoalReached()){
+
+    return true;
+  } else {
+    return false;
+  }
+}
  
  
  void set_stance(const double & l_shoulder_stance = 0.0, const double & l_elbow_stance = 0.0, const double & l_wrist_stance = 0.0,
@@ -239,9 +258,12 @@
    // Loop until goal reached - check BR Wrist (last one)
    while (!all_goals_reached())
    {
-     DEBUG_I("Shoulder: %f", FL_Shoulder.GetPoseEstimate());
-     DEBUG_I("Elbow: %f", FL_Elbow.GetPoseEstimate());
-     DEBUG_I("Wrist: %f", FL_Wrist.GetPoseEstimate());
+     Serial.print("Shoulder: ");
+     Serial.println(FL_Shoulder.GetPoseEstimate());
+     Serial.print("Elbow: ");
+     Serial.println( FL_Elbow.GetPoseEstimate());
+     Serial.print("Wrist: ");
+     Serial.println(FL_Wrist.GetPoseEstimate());
      Complete_Spot.Update_Spot(50);
    }
  }
@@ -276,14 +298,33 @@ double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed
 }
  
 //void dynamic_pose(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCyclePoints],double wrist_list[4][nCyclePoints],bool &received,char (& incoming_msg)[MAX_BUFFER_LEN]){
-void dynamic_pose(const double & l_shoulder_stance = 0.0, const double & l_elbow_stance = 0.0, const double & l_wrist_stance = 0.0,
-  const double & r_shoulder_stance = 0.0, const double & r_elbow_stance = 0.0, const double & r_wrist_stance = 0.0){
-  
+void dynamic_pose(const double & l_shoulder_stance, const double & l_elbow_stance, const double & l_wrist_stance ,
+  const double & r_shoulder_stance, const double & r_elbow_stance, const double & r_wrist_stance, double & speed){
+
   float speedShoulder,speedElbow,speedWrist,speedcalc,positionShoulder,positionElbow,positionWrist,loadShoulder,loadElbow,loadWrist = 0;
 
-  set_stance(l_shoulder_stance, l_elbow_stance, l_wrist_stance, r_shoulder_stance, r_elbow_stance, r_wrist_stance);
-  float time = millis();
-  while(millis()-time < 5000){
+  //set_stance(l_shoulder_stance, l_elbow_stance, l_wrist_stance, r_shoulder_stance, r_elbow_stance, r_wrist_stance);
+  
+  FL_Shoulder.SetGoal(l_shoulder_stance, 500);
+  FL_Elbow.SetGoal(l_elbow_stance, speed);
+  FL_Wrist.SetGoal(l_wrist_stance, speed);
+
+  FR_Shoulder.SetGoal(r_shoulder_stance, 500);
+  FR_Elbow.SetGoal(r_elbow_stance, speed);
+  FR_Wrist.SetGoal(r_wrist_stance, speed);
+
+  RL_Shoulder.SetGoal(l_shoulder_stance, 500);
+  RL_Elbow.SetGoal(l_elbow_stance, speed);
+  RL_Wrist.SetGoal(l_wrist_stance, speed);
+
+  RR_Shoulder.SetGoal(r_shoulder_stance, 500);
+  RR_Elbow.SetGoal(r_elbow_stance, speed);
+  RR_Wrist.SetGoal(r_wrist_stance, speed);
+  
+  Complete_Spot.Update_Spot(0);
+  // Loop until goal reached - check BR Wrist (last one)
+  while (!all_goals_reached())
+  {
     FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
     FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
     FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
@@ -295,236 +336,246 @@ void dynamic_pose(const double & l_shoulder_stance = 0.0, const double & l_elbow
     Serial.print("  Wrist:");
     Serial.println(positionWrist);
   }
+
+  // while(millis()-time < 5000){
+  //   FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+  //   FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+  //   FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+
+  //   Serial.print("Shoulder:");
+  //   Serial.print(positionShoulder);
+  //   Serial.print("  Elbow:");
+  //   Serial.print(positionElbow);
+  //   Serial.print("  Wrist:");
+  //   Serial.println(positionWrist);
+  // }
 }
 
 void perform_gait(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCyclePoints],double wrist_list[4][nCyclePoints],bool &received,char (& incoming_msg)[MAX_BUFFER_LEN]){
-       received = get_message(incoming_msg);
-       long timeStart, wait_time,timecalc_prev = millis();
-       long time_feedback = timeStart/1000;
-       long prev_timestamp = wait_time;
-       bool starter = true;
-       float speedShoulder,speedElbow,speedWrist,speedcalc,positionShoulder,positionElbow,positionWrist,loadShoulder,loadElbow,loadWrist = 0;
-       float positionShoulder_prev = positionShoulder;
-       float positionElbow_prev = positionElbow;
-       float positionWrist_prev = positionWrist;
-       memset(incoming_msg, 0, MAX_BUFFER_LEN);
-       while(!received){
-       for (int i = 0; i <= (nCyclePoints-1); i++){
+  received = get_message(incoming_msg);
+  long timeStart, wait_time,timecalc_prev = millis();
+  long time_feedback = timeStart/1000;
+  long prev_timestamp = wait_time;
+  bool starter = true;
+  float speedShoulder,speedElbow,speedWrist,speedcalc,positionShoulder,positionElbow,positionWrist,loadShoulder,loadElbow,loadWrist = 0;
+  float positionShoulder_prev = positionShoulder;
+  float positionElbow_prev = positionElbow;
+  float positionWrist_prev = positionWrist;
+  memset(incoming_msg, 0, MAX_BUFFER_LEN);
+  while(!received){
+    for (int i = 0; i <= (nCyclePoints-1); i++){
  
-       //r = IK.GetJointAngles(x, y, z, Left, angles_FL);
-       angles_FL[0] = shoulder_list[0][i];
-       angles_FL[1] = elbow_list[0][i];
-       angles_FL[2] = wrist_list[0][i];
-       movementTime = Leg_Joint_Speeds(speeds_FL, angles_FL, 0, Speed_Norm);
-       FL_Shoulder.SetGoal(angles_FL[0], speeds_FL[0]);
-       FL_Elbow.SetGoal(angles_FL[1], speeds_FL[1]);
-       FL_Wrist.SetGoal(angles_FL[2], speeds_FL[2]);
+      //r = IK.GetJointAngles(x, y, z, Left, angles_FL);
+      angles_FL[0] = shoulder_list[0][i];
+      angles_FL[1] = elbow_list[0][i];
+      angles_FL[2] = wrist_list[0][i];
+      movementTime = Leg_Joint_Speeds(speeds_FL, angles_FL, 0, Speed_Norm);
+      FL_Shoulder.SetGoal(angles_FL[0], speeds_FL[0]);
+      FL_Elbow.SetGoal(angles_FL[1], speeds_FL[1]);
+      FL_Wrist.SetGoal(angles_FL[2], speeds_FL[2]);
+
+      angles_FR[0] = shoulder_list[1][i];
+      angles_FR[1] = elbow_list[1][i];
+      angles_FR[2] = wrist_list[1][i];
+      movementTimeAux = Leg_Joint_Speeds(speeds_FR, angles_FR, 1,Speed_Norm);
+      if (movementTimeAux > movementTime){
+        movementTime = movementTimeAux;
+      }
+      
+      FR_Shoulder.SetGoal(angles_FR[0], speeds_FR[0]);
+      FR_Elbow.SetGoal(angles_FR[1], speeds_FR[1]);
+      FR_Wrist.SetGoal(angles_FR[2], speeds_FR[2]);
  
-       angles_FR[0] = shoulder_list[1][i];
-       angles_FR[1] = elbow_list[1][i];
-       angles_FR[2] = wrist_list[1][i];
-       movementTimeAux = Leg_Joint_Speeds(speeds_FR, angles_FR, 1,Speed_Norm);
-       if (movementTimeAux > movementTime){
-         movementTime = movementTimeAux;
-       }
-       FR_Shoulder.SetGoal(angles_FR[0], speeds_FR[0]);
-       FR_Elbow.SetGoal(angles_FR[1], speeds_FR[1]);
-       FR_Wrist.SetGoal(angles_FR[2], speeds_FR[2]);
- 
-       angles_RL[0] = shoulder_list[2][i];
-       angles_RL[1] = elbow_list[2][i];
-       angles_RL[2] = wrist_list[2][i];
-       movementTimeAux = Leg_Joint_Speeds(speeds_RL, angles_RL, 2,Speed_Norm);
-       if (movementTimeAux > movementTime){
-         movementTime = movementTimeAux;
-       }
-       RL_Shoulder.SetGoal(angles_RL[0], speeds_RL[0]);
-       RL_Elbow.SetGoal(angles_RL[1], speeds_RL[1]);
-       RL_Wrist.SetGoal(angles_RL[2], speeds_RL[2]);
- 
+      angles_RL[0] = shoulder_list[2][i];
+      angles_RL[1] = elbow_list[2][i];
+      angles_RL[2] = wrist_list[2][i];
+      movementTimeAux = Leg_Joint_Speeds(speeds_RL, angles_RL, 2,Speed_Norm);
+      if (movementTimeAux > movementTime){
+        movementTime = movementTimeAux;
+      }
+      RL_Shoulder.SetGoal(angles_RL[0], speeds_RL[0]);
+      RL_Elbow.SetGoal(angles_RL[1], speeds_RL[1]);
+      RL_Wrist.SetGoal(angles_RL[2], speeds_RL[2]);
        angles_RR[0] = shoulder_list[3][i];
-       angles_RR[1] = elbow_list[3][i];
-       angles_RR[2] = wrist_list[3][i];
-       movementTimeAux = Leg_Joint_Speeds(speeds_RR, angles_RR, 3, Speed_Norm);
-       if (movementTimeAux > movementTime){
-         movementTime = movementTimeAux;
-       }
-       RR_Shoulder.SetGoal(angles_RR[0], speeds_RR[0]);
-       RR_Elbow.SetGoal(angles_RR[1], speeds_RR[1]);
-       RR_Wrist.SetGoal(angles_RR[2], speeds_RR[2]);
+      angles_RR[1] = elbow_list[3][i];
+      angles_RR[2] = wrist_list[3][i];
+      movementTimeAux = Leg_Joint_Speeds(speeds_RR, angles_RR, 3, Speed_Norm);
+      if (movementTimeAux > movementTime){
+        movementTime = movementTimeAux;
+      }
+      RR_Shoulder.SetGoal(angles_RR[0], speeds_RR[0]);
+      RR_Elbow.SetGoal(angles_RR[1], speeds_RR[1]);
+      RR_Wrist.SetGoal(angles_RR[2], speeds_RR[2]);
+      FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+      FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+      FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+      
+      float time = millis();
+      //Complete_Spot.getLoadString(LoadString,time);
+      //Serial.println(LoadString);
+      Complete_Spot.getPositionString(LoadString,time);
+      Serial.println(LoadString);
  
- 
-       FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
-       FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
-       FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
- 
-       float time = millis();
-       //Complete_Spot.getLoadString(LoadString,time);
-       //Serial.println(LoadString);
-       Complete_Spot.getPositionString(LoadString,time);
-       Serial.println(LoadString);
- 
-       /*
-       float time_calc = (millis()-timecalc_prev);
-       if (time_calc != 0) {
-         //Serial.println("Time Calc: ");Serial.println(time_calc);  
-         //Serial.println("Position Shoulder: ");Serial.println(positionShoulder);
-         //Serial.println("Position Shoulder Prev: ");Serial.println(positionShoulder_prev);
-         speedShoulder = ((((positionShoulder-positionShoulder_prev)/time_calc)*87.912)*3.141)/180;
-         speedElbow = ((((positionElbow-positionElbow_prev)/time_calc)*87.912)*3.141)/180;
-         speedWrist = ((((positionWrist-positionWrist_prev)/time_calc)*87.912)*3.141)/180;
-       } 
-       timecalc_prev = millis();
-       positionShoulder_prev = positionShoulder;
-       positionElbow_prev = positionElbow;
-       positionWrist_prev = positionWrist;
- 
-       time = millis();
-       char message[90];
-       //Serial.print("Speed Shoulder: ");Serial.println(speedShoulder);
-       //sprintf(message, "M0 %.2f; M1 %.2f; M2 %.2f; mode %.2f; e1 %.2f; e2 %.2f; loop %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
-       sprintf(message, " %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
-       Serial.println(message);*/
-       wait_time = millis() - prev_timestamp+30;
-       if (wait_time < movementTime_prev){ 
-         delay(movementTime_prev - wait_time);
-       }
- 
-       movementTime = movementTime*1000;
-       Complete_Spot.Update_Spot(0);
- 
-       time = millis();
-       Complete_Spot.getPositionString(LoadString,time);
-       Serial.println(LoadString);
-       //Complete_Spot.getLoadString(LoadString,time);
-       //Serial.println(LoadString);
- 
-       /*
-       
-       FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
-       FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
-       FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
- 
-       time_calc = (millis()-timecalc_prev);
-       if (time_calc != 0) {
-         //Serial.println("Time Calc: ");Serial.println(time_calc);  
-         //Serial.println("Position Shoulder: ");Serial.println(positionShoulder);
-         //Serial.println("Position Shoulder Prev: ");Serial.println(positionShoulder_prev);
-         speedShoulder = ((((positionShoulder-positionShoulder_prev)/time_calc)*87.912)*3.141)/180;
-         speedElbow = ((((positionElbow-positionElbow_prev)/time_calc)*87.912)*3.141)/180;
-         speedWrist = ((((positionWrist-positionWrist_prev)/time_calc)*87.912)*3.141)/180;
-       } 
-       timecalc_prev = millis();
-       positionShoulder_prev = positionShoulder;
-       positionElbow_prev = positionElbow;
-       positionWrist_prev = positionWrist;
-       time = millis()-timeStart;
-       //sprintf(message, "M0 %.2f; M1 %.2f; M2 %.2f; mode %.2f; e1 %.2f; e2 %.2f; loop %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
-       sprintf(message, " %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
-       Serial.println(message);*/
-       
- 
-       //Complete_Spot.getLoadString(LoadString, LoadTime);
-       //send_message(LoadString);
-       //DEBUG_I("Movement Time: %f", movementTime); 
-       prev_timestamp = millis();
-       movementTime_prev = movementTime;
-       starter = false;
- 
-       //while(!all_goals_reached()){
+      /*
+      float time_calc = (millis()-timecalc_prev);
+      if (time_calc != 0) {
+        //Serial.println("Time Calc: ");Serial.println(time_calc);  
+        //Serial.println("Position Shoulder: ");Serial.println(positionShoulder);
+        //Serial.println("Position Shoulder Prev: ");Serial.println(positionShoulder_prev);
+        speedShoulder = ((((positionShoulder-positionShoulder_prev)/time_calc)*87.912)*3.141)/180;
+        speedElbow = ((((positionElbow-positionElbow_prev)/time_calc)*87.912)*3.141)/180;
+        speedWrist = ((((positionWrist-positionWrist_prev)/time_calc)*87.912)*3.141)/180;
+      } 
+      timecalc_prev = millis();
+      positionShoulder_prev = positionShoulder;
+      positionElbow_prev = positionElbow;
+      positionWrist_prev = positionWrist;
+
+      time = millis();
+      char message[90];
+      //Serial.print("Speed Shoulder: ");Serial.println(speedShoulder);
+      //sprintf(message, "M0 %.2f; M1 %.2f; M2 %.2f; mode %.2f; e1 %.2f; e2 %.2f; loop %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
+      sprintf(message, " %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
+      Serial.println(message);*/
+      wait_time = millis() - prev_timestamp+30;
+      if (wait_time < movementTime_prev){ 
+        delay(movementTime_prev - wait_time);
+      }
+
+      movementTime = movementTime*1000;
+      Complete_Spot.Update_Spot(0);
+
+      time = millis();
+      Complete_Spot.getPositionString(LoadString,time);
+      Serial.println(LoadString);
+      //Complete_Spot.getLoadString(LoadString,time);
+      //Serial.println(LoadString);
+
+      /*
+      
+      FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+      FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+      FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+
+      time_calc = (millis()-timecalc_prev);
+      if (time_calc != 0) {
+        //Serial.println("Time Calc: ");Serial.println(time_calc);  
+        //Serial.println("Position Shoulder: ");Serial.println(positionShoulder);
+        //Serial.println("Position Shoulder Prev: ");Serial.println(positionShoulder_prev);
+        speedShoulder = ((((positionShoulder-positionShoulder_prev)/time_calc)*87.912)*3.141)/180;
+        speedElbow = ((((positionElbow-positionElbow_prev)/time_calc)*87.912)*3.141)/180;
+        speedWrist = ((((positionWrist-positionWrist_prev)/time_calc)*87.912)*3.141)/180;
+      } 
+      timecalc_prev = millis();
+      positionShoulder_prev = positionShoulder;
+      positionElbow_prev = positionElbow;
+      positionWrist_prev = positionWrist;
+      time = millis()-timeStart;
+      //sprintf(message, "M0 %.2f; M1 %.2f; M2 %.2f; mode %.2f; e1 %.2f; e2 %.2f; loop %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
+      sprintf(message, " %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
+      Serial.println(message);*/
+      
+
+      //Complete_Spot.getLoadString(LoadString, LoadTime);
+      //send_message(LoadString);
+      //DEBUG_I("Movement Time: %f", movementTime); 
+      prev_timestamp = millis();
+      movementTime_prev = movementTime;
+      starter = false;
+
+      //while(!all_goals_reached()){
        //  Complete_Spot.Update_Spot(10);
        //}
        //DEBUG_I("ALL REACHED");
        
-       if (received = get_message(incoming_msg))
-       {
-         ini = false;
-         return;
-       }
-     }
-   }
-   return;
- }
+      if (received = get_message(incoming_msg))
+      {
+        ini = false;
+        return;
+      }
+    }
+  }
+  return;
+}
  
- void Load_Test(SpotServo Servo)
- {
-   double max_angle = 120.0;
-   double goal_position = 120.0; // Define your max angle here
-   double min_angle = 0.0; // Define your min angle here
-   double current_angle = Servo.GetPoseEstimate(); // Get the current angle
-   float speed,position,load,speed_calc = 0;
-   int chooser = 1;
-   int start = millis();
-   long time = millis()/1000;
-   //servo.Get_Feedback(speed,load,position,speed_calc,time);
-   char message[50];
-   sprintf(message, " loop %.2f; e1 %.2f; e2 %.2f; %.2f", speed, load,time,position);
-   Serial.println(message);
-   while(1){
-     if (chooser == 0){
-       goal_position = max_angle;
-       Servo.SetGoal(max_angle,2000); // Set the goal to the max angle
-       chooser = 1;
-     }
-     else if (chooser == 1)
-     {
-       goal_position = min_angle;
-       Servo.SetGoal(min_angle,2000); // Set the goal to the min angle
-       chooser = 0;
-     }
-     else if (chooser == 2)
-     {
-       goal_position = max_angle;
-       Servo.SetGoal(max_angle,2000); // Set the goal to the max angle
-       chooser = 4;
-     }
-     else if (chooser == 3)
-     {
-       goal_position = min_angle;
-       Servo.SetGoal(min_angle,2000); // Set the goal to the min angle
-       chooser = 4;
-     } 
-     else if (chooser == 4){
-       goal_position = max_angle;
-       Servo.SetGoal(max_angle,1000); // Set the goal to the max angle
-       chooser = 5;
-     }
-     else if (chooser == 5)
-     {
-       goal_position = min_angle;
-       Servo.SetGoal(min_angle,1000); // Set the goal to the min angle
-       chooser = 6;
-     }
-     else if (chooser == 6)
-     {
-       goal_position = max_angle;
-       Servo.SetGoal(max_angle,500); // Set the goal to the max angle
-       chooser = 7;
-     }
-     else if (chooser == 7)
-     {
-       goal_position = min_angle;
-       Servo.SetGoal(min_angle,500); // Set the goal to the min angle
-       chooser = 0;
-     }
-       
-     Complete_Spot.Update_Spot(0);
-     Serial.print("position:");Serial.println(position);
-     Serial.print("goal_position:");Serial.println(goal_position);
-     while(abs(position - goal_position) > 2){
-         //Servo.Get_Feedback(speed,load,position,speed_calc,time);
-         char message[50];
-         time = millis()/1000;
-         float time_used = millis()-start;
-         sprintf(message, " loop %.2f; e1 %.2f; e2 %.2f; %.2f", speed, load,time_used,position);
-         Serial.println(message);
-         
-     }
-     Serial.println("Goal Reached");
-     delay(1000);
-   }
- }
- 
+void Load_Test(SpotServo Servo) {
+  double max_angle = 120.0;
+  double goal_position = 120.0; // Define your max angle here
+  double min_angle = 0.0; // Define your min angle here
+  double current_angle = Servo.GetPoseEstimate(); // Get the current angle
+  float speed,position,load,speed_calc = 0;
+  int chooser = 1;
+  int start = millis();
+  long time = millis()/1000;
+  //servo.Get_Feedback(speed,load,position,speed_calc,time);
+  char message[50];
+  sprintf(message, " loop %.2f; e1 %.2f; e2 %.2f; %.2f", speed, load,time,position);
+  Serial.println(message);
+  while(1){
+    if (chooser == 0){
+      goal_position = max_angle;
+      Servo.SetGoal(max_angle,2000); // Set the goal to the max angle
+      chooser = 1;
+    }
+    else if (chooser == 1)
+    {
+      goal_position = min_angle;
+      Servo.SetGoal(min_angle,2000); // Set the goal to the min angle
+      chooser = 0;
+    }
+    else if (chooser == 2)
+    {
+      goal_position = max_angle;
+      Servo.SetGoal(max_angle,2000); // Set the goal to the max angle
+      chooser = 4;
+    }
+    else if (chooser == 3)
+    {
+      goal_position = min_angle;
+      Servo.SetGoal(min_angle,2000); // Set the goal to the min angle
+      chooser = 4;
+    } 
+    else if (chooser == 4){
+      goal_position = max_angle;
+      Servo.SetGoal(max_angle,1000); // Set the goal to the max angle
+      chooser = 5;
+    }
+    else if (chooser == 5)
+    {
+      goal_position = min_angle;
+      Servo.SetGoal(min_angle,1000); // Set the goal to the min angle
+      chooser = 6;
+    }
+    else if (chooser == 6)
+    {
+      goal_position = max_angle;
+      Servo.SetGoal(max_angle,500); // Set the goal to the max angle
+      chooser = 7;
+    }
+    else if (chooser == 7)
+    {
+      goal_position = min_angle;
+      Servo.SetGoal(min_angle,500); // Set the goal to the min angle
+      chooser = 0;
+    }
+      
+    Complete_Spot.Update_Spot(0);
+    Serial.print("position:");Serial.println(position);
+    Serial.print("goal_position:");Serial.println(goal_position);
+    while(abs(position - goal_position) > 2){
+        //Servo.Get_Feedback(speed,load,position,speed_calc,time);
+        char message[50];
+        time = millis()/1000;
+        float time_used = millis()-start;
+        sprintf(message, " loop %.2f; e1 %.2f; e2 %.2f; %.2f", speed, load,time_used,position);
+        Serial.println(message);
+        
+    }
+    Serial.println("Goal Reached");
+    delay(1000);
+  }
+}
+
  
  
  
@@ -618,70 +669,70 @@ void perform_gait(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCy
  double r;
  
  void setup(){
-   //DEBUG_BEGIN();
-   Serial.begin(115200);
-   while(!Serial){
-     delay(1000);
-   }
-   Serial.println("Starting setup!");
-   InitRGB();
- 
-   RGBcolor(0, 64, 255);
- 
-   boardDevInit();
-   // setup_wifi();
-   
-   // setup_wifi_communicator();
- 
-   servoInit();
- 
-   pinMode(LED_PIN, OUTPUT);
- 
-   DEBUG_I("Done setting up!");
-   RGBoff();
- 
-   delay(1000);
-   pingAll(true);
- 
-   //threadInit();
- 
-   ID[0] = 1;
-   ID[1] = 2;
-   ID[2] = 3;
-   Speed[0] = 800;
-   Speed[1] = 800;
-   Speed[2] = 800;
-   ACC[0] = 50;
-   ACC[1] = 50;
-   ACC[2] = 50;
-   Position[0]=2049;
-   Position[1]=2049;
-   Position[2]=2049;
- 
-   FL_Shoulder.Initialize(1, 0, 0, 0, FL, Shoulder);  // 0 | FLS start: 0
-   FL_Elbow.Initialize(2, 0, 0, 0, FL, Elbow);        // 0 | FLE start: 0
-   FL_Wrist.Initialize(3, 0, 0, 0, FL, Wrist);        // 0 | FLW start: 0
- 
-   FR_Shoulder.Initialize(4, 0, 0, 0, FR, Shoulder);  // 0 | FRS start: 0
-   FR_Elbow.Initialize(5, 0, 0, 0, FR, Elbow);        // 0 | FRE start: 0
-   FR_Wrist.Initialize(6, 0, 0, 0, FR, Wrist);        // 0 | FRW start: 0
- 
-   RL_Shoulder.Initialize(7, 0, 0, 0, RL, Shoulder);  // 0 | RLS start: 0
-   RL_Elbow.Initialize(8, 0, 0, 0, RL, Elbow);        // 0 | RLE start: 0
-   RL_Wrist.Initialize(9, 0, 0, 0, RL, Wrist);        // 0 | RLW start: 0
- 
-   RR_Shoulder.Initialize(10, 0, 0, 0, RR, Shoulder);  // 0 | RRS start: 0
-   RR_Elbow.Initialize(11, 0, 0, 0, RR, Elbow);        // 0 | RRE start: 0
-   RR_Wrist.Initialize(12, 0, 0, 0, RR, Wrist);        // 0 | RRW start: 0
- 
-   delay(1000);
- 
-   Complete_Spot.Initialize(Servos,12);
- 
-   IK.Initialize(0.04, 0.07, 0.11);
-   
-   prone_calibration_stance();
-   ini = false;
+  //DEBUG_BEGIN();
+  Serial.begin(115200);
+  while(!Serial){
+    delay(1000);
+  }
+  Serial.println("Starting setup!");
+  InitRGB();
+
+  RGBcolor(0, 64, 255);
+
+  boardDevInit();
+  // setup_wifi();
+  
+  // setup_wifi_communicator();
+
+  servoInit();
+
+  pinMode(LED_PIN, OUTPUT);
+
+  DEBUG_I("Done setting up!");
+  RGBoff();
+
+  delay(1000);
+  pingAll(true);
+
+  //threadInit();
+
+  ID[0] = 1;
+  ID[1] = 2;
+  ID[2] = 3;
+  Speed[0] = 800;
+  Speed[1] = 800;
+  Speed[2] = 800;
+  ACC[0] = 50;
+  ACC[1] = 50;
+  ACC[2] = 50;
+  Position[0]=2049;
+  Position[1]=2049;
+  Position[2]=2049;
+
+  FL_Shoulder.Initialize(1, 0, 0, 0, FL, Shoulder);  // 0 | FLS start: 0
+  FL_Elbow.Initialize(2, 0, 0, 0, FL, Elbow);        // 0 | FLE start: 0
+  FL_Wrist.Initialize(3, 0, 0, 0, FL, Wrist);        // 0 | FLW start: 0
+
+  FR_Shoulder.Initialize(4, 0, 0, 0, FR, Shoulder);  // 0 | FRS start: 0
+  FR_Elbow.Initialize(5, 0, 0, 0, FR, Elbow);        // 0 | FRE start: 0
+  FR_Wrist.Initialize(6, 0, 0, 0, FR, Wrist);        // 0 | FRW start: 0
+
+  RL_Shoulder.Initialize(7, 0, 0, 0, RL, Shoulder);  // 0 | RLS start: 0
+  RL_Elbow.Initialize(8, 0, 0, 0, RL, Elbow);        // 0 | RLE start: 0
+  RL_Wrist.Initialize(9, 0, 0, 0, RL, Wrist);        // 0 | RLW start: 0
+
+  RR_Shoulder.Initialize(10, 0, 0, 0, RR, Shoulder);  // 0 | RRS start: 0
+  RR_Elbow.Initialize(11, 0, 0, 0, RR, Elbow);        // 0 | RRE start: 0
+  RR_Wrist.Initialize(12, 0, 0, 0, RR, Wrist);        // 0 | RRW start: 0
+
+  delay(1000);
+
+  Complete_Spot.Initialize(Servos,12);
+
+  IK.Initialize(0.04, 0.07, 0.11);
+  
+  prone_calibration_stance();
+  ini = false;
  }
  int cycle = 0;
  float speedShoulder,speedElbow,speedWrist,speedcalc,positionShoulder,positionElbow,positionWrist,loadShoulder,loadElbow,loadWrist = 0;
@@ -703,35 +754,36 @@ void loop(){
     cycle = 0;
   delay(500);
 
-  if (cycle == 0){ 
-    FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
-    FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
-    FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-    Serial.print("[FL] ");
-  } else if (cycle == 1){
-    FR_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
-    FR_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
-    FR_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-    Serial.print("[FR] ");
-  } else if (cycle == 2){
-    RL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
-    RL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
-    RL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-    Serial.print("[RL] ");
-  } else if (cycle == 3){
-    RR_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
-    RR_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
-    RR_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-    Serial.print("[RR] ");
-  }
+  if(PRINT){
+    if (cycle == 0){ 
+      FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+      FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+      FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+      Serial.print("[FL] ");
+    } else if (cycle == 1){
+      FR_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+      FR_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+      FR_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+      Serial.print("[FR] ");
+    } else if (cycle == 2){
+      RL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+      RL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+      RL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+      Serial.print("[RL] ");
+    } else if (cycle == 3){
+      RR_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
+      RR_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
+      RR_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
+      Serial.print("[RR] ");
+    }
 
-  Serial.print("Shoulder:");
-  Serial.print(positionShoulder);
-  Serial.print("  Elbow:");
-  Serial.print(positionElbow);
-  Serial.print("  Wrist:");
-  Serial.println(positionWrist);
- 
+    Serial.print("Shoulder:");
+    Serial.print(positionShoulder);
+    Serial.print("  Elbow:");
+    Serial.print(positionElbow);
+    Serial.print("  Wrist:");
+    Serial.println(positionWrist);
+  }
  
    if (false)//(ini == true) //MUDAR ISTO
    {
@@ -742,23 +794,29 @@ void loop(){
    }
  
  
-   if (Serial.available()) {
-     char incoming_char = Serial.read();
-     Serial.print("Received: ");
-     Serial.println(incoming_char);
+  if (Serial.available()) {
+   char incoming_char = Serial.read();
+   Serial.print("Received: ");
+   Serial.println(incoming_char);
  
-     if (incoming_char == 's') {
-       prone_calibration_stance();
-     } else if(incoming_char == 'a'){
-       straight_calibration_stance();
-     } else if(incoming_char == 't'){
-        memset(incoming_msg, 0, MAX_BUFFER_LEN);
+    if (incoming_char == 's') {
+      prone_calibration_stance();
+    } else if(incoming_char == 'a'){
+     straight_calibration_stance();
+    } else if(incoming_char == 't'){
+      memset(incoming_msg, 0, MAX_BUFFER_LEN);
         
-       double l_shoulder = 0.0, l_elbow = -45.0, l_wrist = 45.0;
-       double r_shoulder = 0.0, r_elbow = 45.0, r_wrist = -45.0;
- 
-       dynamic_pose(l_shoulder, l_elbow, l_wrist, r_shoulder, r_elbow, r_wrist);
-     }
+      double l_shoulder = 0.0, l_elbow = -50, l_wrist = 90.0;
+      double r_shoulder = 0.0, r_elbow = 50, r_wrist = -90;
+      double speed = 45 / 0.087912;
+      float timee = millis();
+      dynamic_pose(l_shoulder, l_elbow, l_wrist, r_shoulder, r_elbow, r_wrist, speed);
+      timee = millis() - timee;
+      Serial.print("Speed: ");
+      Serial.print(speed);
+      Serial.print("Time: ");
+      Serial.println(timee/1000);
+    }
    }
  
  

@@ -1,0 +1,1 @@
+from .StaticPoseCommand import StaticPoseCommand

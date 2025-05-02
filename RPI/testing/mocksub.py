@@ -1,17 +1,34 @@
 import zmq
 import msgpack
+import socket as pysocket
 
 sockets_paths = ["/tmp/pico_serial_handler.socket",
                  "/tmp/static_pose_command.socket"]
-sockets_tcp = [{'ip':"localhost", 'port': 5555}]
+sockets_tcp = [{'ip':"10.227.157.156", 'port': 5000}]
+
+
+def is_port_open(host: str, port: int, timeout=2):
+    with pysocket.socket(pysocket.AF_INET, pysocket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout)
+        try:
+            sock.connect((host, port))
+            return True
+        except (pysocket.timeout, pysocket.error, OSError):
+            return False
+
+
+
 
 context = zmq.Context()
 socket = context.socket(zmq.SUB)
-#socket.connect(f"ipc://{socket_path}")
+
 for socket_path in sockets_paths:
     socket.connect(f"ipc://{socket_path}")
-# Subscribe to all topics
+
 for socket_tcp in sockets_tcp:
+    if not is_port_open(socket_tcp['ip'], socket_tcp['port']):
+        print(f"Error: Could not connect to {socket_tcp['ip']}:{socket_tcp['port']}, wrong IP or port is not open.")
+        continue
     socket.connect(f"tcp://{socket_tcp['ip']}:{socket_tcp['port']}")
 
 socket.setsockopt_string(zmq.SUBSCRIBE, "pico/accel")

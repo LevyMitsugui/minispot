@@ -15,8 +15,9 @@ Y_MIN = -0.05
 Y_MAX = 0.05
 SLIDER_STEPS = 100
 
-class StaticPoseCommand:
+class JoystickGUI:
     def __init__(self, root, on_change_only=False):
+        
         self.root = root
         self.root.title("Joystick GUI")
         self.output_callback = None

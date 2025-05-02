@@ -1,4 +1,4 @@
-from StaticPoseCommand import StaticPoseCommand
+from modules.JoystickGUI.JoystickGUI import JoystickGUI
 import tkinter as tk
 import zmq
 import msgpack

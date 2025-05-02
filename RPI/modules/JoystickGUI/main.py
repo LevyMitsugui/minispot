@@ -1,4 +1,4 @@
-from modules.JoystickGUI.JoystickGUI import JoystickGUI
+from JoystickGUI import JoystickGUI
 import tkinter as tk
 import zmq
 import msgpack
@@ -38,7 +38,7 @@ def publish_data(socket):
 def main():
     """
     Main entry point of the script. Parses command line arguments, sets up a ZMQ socket at the specified IP and port, 
-    and starts a Tkinter event loop with a StaticPoseCommand widget. The widget is configured to only send data when
+    and starts a Tkinter event loop with a JoystickGUI widget. The widget is configured to only send data when
     changed if the --onchange flag is given. The data is published to the ZMQ socket.
 
     :return: None
@@ -49,7 +49,7 @@ def main():
 
     try:
         root = tk.Tk()
-        app = StaticPoseCommand(root, on_change_only)
+        app = JoystickGUI(root, on_change_only)
         app.set_output_callback(publish_data(socket))
         
         root.mainloop()

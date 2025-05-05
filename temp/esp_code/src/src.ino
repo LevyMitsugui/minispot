@@ -40,14 +40,17 @@
 #define ARDUINO_RUNNING_CORE 1
 #endif
 
-#define PRINT false
-#define DEBUG_set_stance_wspeed false
-#define COMMAND_BUFFER_SIZE 128
-
-bool SERIAL_FORWARDING = false;
- 
 
 // ----------------- ADAPT VARIABLES ------------------
+
+#define PRINT false
+#define DEBUG_set_stance_wspeed false
+#define COMMAND_BUFFER_SIZE 256
+
+bool SERIAL_FORWARDING = false;
+bool pos_feedback_toggle = false;
+bool log_toggle = false;
+
 int cycle = 0;
 float speedShoulder,speedElbow,speedWrist,speedcalc,positionShoulder,positionElbow,positionWrist,loadShoulder,loadElbow,loadWrist = 0;
 
@@ -57,6 +60,30 @@ int bufferPos= 0;
 void processPiCommand(const char* cmd);
 void processTerminalCommand(const char* cmd);
 
+enum CONTROL_STATES{
+  SET_POS_SPEED,
+  SET_STANCE_STRAIGHT,
+  SET_STANCE_PRONE,
+  TOGGLE_LOG,
+  TOGGLE_FEEDBACK
+};
+enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Servos[12]" below
+  FL_SHOULDER, FL_ELBOW, FL_WRIST,
+  FR_SHOULDER, FR_ELBOW, FR_WRIST,
+  RL_SHOULDER, RL_ELBOW, RL_WRIST,
+  RR_SHOULDER, RR_ELBOW, RR_WRIST
+};
+
+typedef struct PI_SERVO_FRAME{
+  bool new_command;
+  int command;
+  float pos[12];
+  float speed[12];
+} PI_FAST_COMMAND;
+
+CONTROL_STATES control_state = SET_POS_SPEED;
+SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER;
+PI_FAST_COMMAND pi_command;
 // ----------------------------------------------------
 
 
@@ -353,11 +380,11 @@ void set_stance_wspeed(const double & l_shoulder_stance, const double & l_elbow_
     FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
     FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
 
-    Serial.print("Shoulder:");
-    Serial.print(positionShoulder);
-    Serial.print("  Elbow:");
-    Serial.print(positionElbow);
-    Serial.print("  Wrist:");
+    Serial.print("ESP/FL/Shoulder:");
+    Serial.println(positionShoulder);
+    Serial.print("ESP/FL/Elbow:");
+    Serial.println(positionElbow);
+    Serial.print("ESP/FL/Wrist:");
     Serial.println(positionWrist);
   }
 }
@@ -366,35 +393,8 @@ void dynamic_pose(
   double (& angles_FR)[3], double (& angles_FL)[3], double (& angles_RL)[3], double (& angles_RR)[3],
   double (& speed_FR)[3], double (& speed_FL)[3], double (& speed_RL)[3], double (& speed_RR)[3]
   ){
-  Serial.println("Dynamic Pose");
-  for(int i = 0; i < 3; i++){
-    Serial.print("FR: ");
-    Serial.print(angles_FR[i]);
-    Serial.print(" ");
-    Serial.println(speed_FR[i]);
+  Serial.println("ESP/DEBUG/function:Dynamic Pose");
 
-    Serial.print("FL: ");
-    Serial.print(angles_FL[i]);
-    Serial.print(" ");
-    Serial.println(speed_FL[i]);
-
-    Serial.print("RL: ");
-    Serial.print(angles_RL[i]);
-    Serial.print(" ");
-    Serial.println(speed_RL[i]);
-
-    Serial.print("RR: ");
-    Serial.print(angles_RR[i]);
-    Serial.print(" ");
-    Serial.println(speed_RR[i]);
-
-  //   FR_servos[i]->SetGoal(angles_FR[i], speed_FR[i]);
-  //   FL_servos[i]->SetGoal(angles_FL[i], speed_FL[i]);
-  //   RL_servos[i]->SetGoal(angles_RL[i], speed_RL[i]);
-  //   RR_servos[i]->SetGoal(angles_RR[i], speed_RR[i]);
-  }
-
-  
   FR_Shoulder.SetGoal(angles_FR[0], speed_FR[0]);
   FR_Elbow.SetGoal(angles_FR[1], speed_FR[1]);
   FR_Wrist.SetGoal(angles_FR[2], speed_FR[2]);
@@ -408,36 +408,8 @@ void dynamic_pose(
   RR_Elbow.SetGoal(angles_RR[1], speed_RR[1]);
   RR_Wrist.SetGoal(angles_RR[2], speed_RR[2]);
 
-  
   Complete_Spot.Update_Spot(0);
 }
-
-void dynamic_pose_2(
-  SpotServo & FR_Shoulder, SpotServo & FR_Elbow, SpotServo & FR_Wrist,
-  SpotServo & FL_Shoulder, SpotServo & FL_Elbow, SpotServo & FL_Wrist,
-  SpotServo & RL_Shoulder, SpotServo & RL_Elbow, SpotServo & RL_Wrist,
-  SpotServo & RR_Shoulder, SpotServo & RR_Elbow, SpotServo & RR_Wrist,
-  double (& angles_FR)[3], double (& angles_FL)[3], double (& angles_RL)[3], double (& angles_RR)[3],
-  double (& speed_FR)[3], double (& speed_FL)[3], double (& speed_RL)[3], double (& speed_RR)[3]
-  ){
-    Serial.println("Dynamic Pose");
-
-    FR_Shoulder.SetGoal(angles_FR[0], speed_FR[0]);
-    FR_Elbow.SetGoal(angles_FR[1], speed_FR[1]);
-    FR_Wrist.SetGoal(angles_FR[2], speed_FR[2]);
-    FL_Shoulder.SetGoal(angles_FL[0], speed_FL[0]);
-    FL_Elbow.SetGoal(angles_FL[1], speed_FL[1]);
-    FL_Wrist.SetGoal(angles_FL[2], speed_FL[2]);
-    RL_Shoulder.SetGoal(angles_RL[0], speed_RL[0]);
-    RL_Elbow.SetGoal(angles_RL[1], speed_RL[1]);
-    RL_Wrist.SetGoal(angles_RL[2], speed_RL[2]);
-    RR_Shoulder.SetGoal(angles_RR[0], speed_RR[0]);
-    RR_Elbow.SetGoal(angles_RR[1], speed_RR[1]);
-    RR_Wrist.SetGoal(angles_RR[2], speed_RR[2]);
-  
-    
-    Complete_Spot.Update_Spot(0);
-  }
 
 void perform_gait(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCyclePoints],double wrist_list[4][nCyclePoints],bool &received,char (& incoming_msg)[MAX_BUFFER_LEN]){
   received = get_message(incoming_msg);
@@ -499,32 +471,9 @@ void perform_gait(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCy
       FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
       
       float time = millis();
-      //Complete_Spot.getLoadString(LoadString,time);
-      //Serial.println(LoadString);
       Complete_Spot.getPositionString(LoadString,time);
       Serial.println(LoadString);
  
-      /*
-      float time_calc = (millis()-timecalc_prev);
-      if (time_calc != 0) {
-        //Serial.println("Time Calc: ");Serial.println(time_calc);  
-        //Serial.println("Position Shoulder: ");Serial.println(positionShoulder);
-        //Serial.println("Position Shoulder Prev: ");Serial.println(positionShoulder_prev);
-        speedShoulder = ((((positionShoulder-positionShoulder_prev)/time_calc)*87.912)*3.141)/180;
-        speedElbow = ((((positionElbow-positionElbow_prev)/time_calc)*87.912)*3.141)/180;
-        speedWrist = ((((positionWrist-positionWrist_prev)/time_calc)*87.912)*3.141)/180;
-      } 
-      timecalc_prev = millis();
-      positionShoulder_prev = positionShoulder;
-      positionElbow_prev = positionElbow;
-      positionWrist_prev = positionWrist;
-
-      time = millis();
-      char message[90];
-      //Serial.print("Speed Shoulder: ");Serial.println(speedShoulder);
-      //sprintf(message, "M0 %.2f; M1 %.2f; M2 %.2f; mode %.2f; e1 %.2f; e2 %.2f; loop %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
-      sprintf(message, " %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f", speedShoulder,loadShoulder,speedElbow,loadElbow,speedWrist,loadWrist,time);
-      Serial.println(message);*/
       wait_time = millis() - prev_timestamp+30;
       if (wait_time < movementTime_prev){ 
         delay(movementTime_prev - wait_time);
@@ -766,7 +715,7 @@ void setup(){
   while(!Serial){
     delay(1000);
   }
-  Serial.println("Starting setup!");
+  Serial.println("ESP/LOG:Starting setup!");
   InitRGB();
 
   RGBcolor(0, 64, 255);
@@ -828,49 +777,42 @@ void setup(){
 }
 
 void loop(){
-  // if we lost connection, we attempt to reconnect (blocking)
-  //UBaseType_t numTasks = uxTaskGetNumberOfTasks();
 
-  //DEBUG_I("Number of tasks: %d\n", numTasks);
-  
-  // if(!is_client_connected()){
-  //    DEBUG_I("Reconnecting...");
-  //    connect_client(); }
-   
-  //Serial.print("cycle: ");
-  //Serial.println(cycle);
   cycle++;
   if (cycle == 4)
     cycle = 0;
 
-  if(PRINT){
+  // Serial.print("ESP/LOOP/CYCLE:");
+  // Serial.println(cycle);
+  
+  if(pos_feedback_toggle){
     if (cycle == 0){ 
       FL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
       FL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
       FL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-      Serial.print("[FL] ");
+      Serial.print("ESP/FB/FL:");
     } else if (cycle == 1){
       FR_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
       FR_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
       FR_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-      Serial.print("[FR] ");
+      Serial.print("ESP/FB/FR:");
     } else if (cycle == 2){
       RL_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
       RL_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
       RL_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-      Serial.print("[RL] ");
+      Serial.print("ESP/FB/RL:");
     } else if (cycle == 3){
       RR_Shoulder.Get_Feedback(speedShoulder,loadShoulder,positionShoulder);
       RR_Elbow.Get_Feedback(speedElbow,loadElbow,positionElbow);
       RR_Wrist.Get_Feedback(speedWrist,loadWrist,positionWrist);
-      Serial.print("[RR] ");
+      Serial.print("ESP/FB/RR:");
     }
 
     Serial.print("Shoulder:");
     Serial.print(positionShoulder);
-    Serial.print("  Elbow:");
+    Serial.print(",Elbow:");
     Serial.print(positionElbow);
-    Serial.print("  Wrist:");
+    Serial.print(",Wrist:");
     Serial.println(positionWrist);
   }
  
@@ -878,7 +820,7 @@ void loop(){
   {
     memset(incoming_msg, 0, MAX_BUFFER_LEN);
     received = get_message(incoming_msg);
-    Serial.println("Received");
+    Serial.print("ESP/DEBUG/MAIN_LOOP:Received:");
     Serial.println(incoming_msg);
   }
  
@@ -894,6 +836,52 @@ void loop(){
     } else if(incoming_char == 'a'){
       straight_calibration_stance();
 
+    }
+  }
+
+  if(pi_command.new_command){
+    pi_command.new_command = false;
+
+    switch(pi_command.command){
+      case SET_STANCE_STRAIGHT:
+        straight_calibration_stance();
+        break;
+      case SET_STANCE_PRONE:
+        prone_calibration_stance();
+        break;
+        
+      case SET_POS_SPEED:
+        for(int i = 0; i < 12; i++){
+          if(PRINT){
+            Serial.print("Servo: ");
+            Serial.print(i);
+            Serial.print(" Pos: ");
+            Serial.print(pi_command.pos[i]);
+            Serial.print(" Speed: ");
+            Serial.println(pi_command.speed[i]);
+          }
+          Servos[i]->SetGoal(pi_command.pos[i], pi_command.speed[i]);
+        }
+        Complete_Spot.Update_Spot(0);
+        break;
+      
+      case TOGGLE_LOG:
+        if(log_toggle){
+          Serial.println("ESP/LOG:Log:true");
+        }
+        log_toggle = !log_toggle;
+        break;
+
+      case TOGGLE_FEEDBACK:
+        pos_feedback_toggle = !pos_feedback_toggle;
+        if(log_toggle){
+          Serial.print("ESP/POS_FB:Feedback:");
+          Serial.println(pos_feedback_toggle);
+        }
+        break;
+
+      default:
+        break;
     }
   }
 
@@ -1019,7 +1007,7 @@ void serialEvent() {
       inputBuffer[bufferPos] = '\0';  // Null-terminate string
       if (bufferPos > 0) {
         if (inputBuffer[0] == '<') {
-          processPiCommand(inputBuffer + 1);
+          processPiCommandServoFrame(inputBuffer + 1);
         } else if (inputBuffer[0] == '>') {
           processTerminalCommand(inputBuffer + 1);
         } else {
@@ -1038,7 +1026,7 @@ void serialEvent() {
 
 // --- Machine Mode Handler ---
 void processPiCommand(const char* cmd) {
-  Serial.print("[PI] Received: ");
+  Serial.print("ESP/LOG/SerialEvent:Received:");
   Serial.println(cmd);
 
   // Example: LRS/pos:120.3
@@ -1058,25 +1046,41 @@ void processPiCommand(const char* cmd) {
   }
 }
 
-void processPiCommandFast(const char* cmd){
+void processPiCommandServoFrame(const char* cmd){
   Serial.print("[PI] Received: ");
   Serial.println(cmd);
+  
+  char buf[COMMAND_BUFFER_SIZE];
+  strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
+  buf[COMMAND_BUFFER_SIZE - 1] = '\0';
+  
 
-  // Example: LRS/pos:120.3
-  int main_index;
-  int sub_index;
-  float value;
+  char* token = strtok(buf, ":");
 
-  int matched = sscanf(cmd, "%d/%d/%15[^:]:%f", &main_index, &sub_index, &value);
-  if (matched == 3) {
-    Serial.print("[PI] Target: "); Serial.println(main_index);
-    Serial.print("[PI] Type: "); Serial.println(sub_index);
-    Serial.print("[PI] Value: "); Serial.println(value,8);
+  pi_command.command = atoi(token);
 
-    // TODO: Match `part` and `type` and apply SetGoal or similar logic
-  } else {
-    Serial.println("[ERROR] Malformed Pi command");
-  }
+  if(pi_command.command == SET_POS_SPEED){
+    int i = 0;
+    int idx = 0;
+    token = strtok(NULL, ",");
+    while(token != NULL){
+      if(i%2 == 0){
+        pi_command.pos[idx]=atof(token);
+      }else{
+        pi_command.speed[idx]=atof(token);
+        idx++;
+      }
+
+      token = strtok(NULL, ",");
+      i++;
+    }
+
+    if(i < 24){
+      Serial.println("[ERROR] Malformed Pi command, not enought values");
+      return;
+    }
+  } //else, they are other commands that don't need values
+  pi_command.new_command = true;
 }
 // --- Terminal Mode Handler ---
 void processTerminalCommand(const char* cmd) {

@@ -1,5 +1,6 @@
 import serial
 import time
+import sys
 
 import numpy as np
 from spotmicro.Kinematics.LegKinematics import LegIK
@@ -15,6 +16,7 @@ from Kinematics.SpotKinematics import SpotModel
 # )
 
 #model = SpotModel()
+PI = np.pi
 
 model = SpotModel(
     shoulder_length=0.045,
@@ -28,20 +30,18 @@ model = SpotModel(
 )
 
 
-model.pf_FL = np.array([ 0.06,  0.04, -0.10])
-model.pf_FR = np.array([ 0.06, -0.04, -0.10])
-model.pf_BL = np.array([-0.06,  0.04, -0.10])
-model.pf_BR = np.array([-0.06, -0.04, -0.10])
+model.pf_FL = np.array([ 0.0925,  0.085, -0.145])
+model.pf_FR = np.array([ 0.0925, -0.085, -0.145])
+model.pf_BL = np.array([-0.0925,  0.085, -0.145])
+model.pf_BR = np.array([-0.0925, -0.085, -0.145])
 
 model.WorldToFoot["FL"] = RpToTrans(np.eye(3), model.pf_FL)
 model.WorldToFoot["FR"] = RpToTrans(np.eye(3), model.pf_FR)
 model.WorldToFoot["BL"] = RpToTrans(np.eye(3), model.pf_BL)
 model.WorldToFoot["BR"] = RpToTrans(np.eye(3), model.pf_BR)
 
-
-row = 0
-roll = 0
-pitch = 0
+roll = 0.0
+pitch = 0.52
 yaw = 0
 
 orn = np.array([roll, pitch, yaw])  # e.g., [0.1, -0.2, 0.0]
@@ -50,3 +50,30 @@ T_bf = model.WorldToFoot            # Default foot positions
 joint_angles = model.IK(orn, pos, T_bf) #in radians
 joint_angles = np.degrees(joint_angles)
 print(joint_angles)
+
+speed = 256
+try:
+    esp_serial = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+except (serial.SerialException, OSError) as e:
+    print(f"[ERROR] Serial port error: {e}")
+    sys.exit(1)
+
+msg = "<0:"
+for joint in joint_angles:
+    for pos in joint:
+        msg += "{:.3f},".format(pos)
+        msg += "{:.3f},".format(speed)
+msg = msg[:-1]
+msg+="\n"
+print(msg)
+stance = "<2\n"
+esp_serial.write(stance.encode())
+esp_serial.flush()
+
+input("Press enter to continue...")
+esp_serial.write(msg.encode())
+esp_serial.flush()
+
+input("Press enter to continue...")
+esp_serial.write(stance.encode())
+esp_serial.flush()

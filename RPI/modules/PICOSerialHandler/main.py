@@ -5,11 +5,13 @@ import msgpack
 import argparse
 from PICOSerialHandler import PICOSerialHandler
 
+IPC_SOCKET_PATH = "/tmp/pico_serial_handler.socket" # Default path for IPC socket
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Read and publish data from Pico Serial Handler.")
-    parser.add_argument("port", help="Serial port to use (e.g., /dev/ttyACM0)")
-    parser.add_argument("baudrate", type=int, help="Baudrate for serial communication")
+    parser.add_argument("-p", "--port", type=str, required=True, help="Serial port to connect to")
+    parser.add_argument("-b", "--baudrate", type=int, default=115200, help="Baudrate for the serial connection")  
+    parser.add_argument("-s", "--socket_path", type=str, default=IPC_SOCKET_PATH, help="Path to the IPC socket")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 
     args = parser.parse_args()
@@ -21,7 +23,7 @@ def parse_args():
     return args
 
 
-def setup_zmq_socket(socket_path="/tmp/pico_serial_handler.socket"):
+def setup_zmq_socket(socket_path=IPC_SOCKET_PATH):
     if os.path.exists(socket_path):
         os.remove(socket_path)
     context = zmq.Context()

@@ -43,6 +43,12 @@
 
 // ----------------- ADAPT VARIABLES ------------------
 
+#include <ArduinoEigen.h>
+#include "Kinematics.hpp"
+#include "SpotModel.hpp"
+#include "LieAlgebra.hpp"
+
+
 #define PRINT false
 #define DEBUG_set_stance_wspeed false
 #define COMMAND_BUFFER_SIZE 256
@@ -62,10 +68,11 @@ void processTerminalCommand(const char* cmd);
 
 enum CONTROL_STATES{
   SET_POS_SPEED,
+  SET_COMPOUND_CONTROL,
   SET_STANCE_STRAIGHT,
   SET_STANCE_PRONE,
   TOGGLE_LOG,
-  TOGGLE_FEEDBACK
+  SET_FEEDBACK
 };
 enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Servos[12]" below
   FL_SHOULDER, FL_ELBOW, FL_WRIST,
@@ -872,7 +879,7 @@ void loop(){
         log_toggle = !log_toggle;
         break;
 
-      case TOGGLE_FEEDBACK:
+      case SET_FEEDBACK:
         pos_feedback_toggle = !pos_feedback_toggle;
         if(log_toggle){
           Serial.print("ESP/POS_FB:Feedback:");
@@ -1047,7 +1054,7 @@ void processPiCommand(const char* cmd) {
 }
 
 void processPiCommandServoFrame(const char* cmd){
-  Serial.print("[PI] Received: ");
+  Serial.print("[PI] Received:");
   Serial.println(cmd);
   
   char buf[COMMAND_BUFFER_SIZE];
@@ -1058,27 +1065,37 @@ void processPiCommandServoFrame(const char* cmd){
   char* token = strtok(buf, ":");
 
   pi_command.command = atoi(token);
+  
+  int i = 0;
+  int idx = 0;
+  switch(pi_command.command){
+    case SET_POS_SPEED:
+      token = strtok(NULL, ",");
+      while(token != NULL){
+        if(i%2 == 0){
+          pi_command.pos[idx]=atof(token);
+        }else{
+          pi_command.speed[idx]=atof(token);
+          idx++;
+        }
 
-  if(pi_command.command == SET_POS_SPEED){
-    int i = 0;
-    int idx = 0;
-    token = strtok(NULL, ",");
-    while(token != NULL){
-      if(i%2 == 0){
-        pi_command.pos[idx]=atof(token);
-      }else{
-        pi_command.speed[idx]=atof(token);
-        idx++;
+        token = strtok(NULL, ",");
+        i++;
       }
 
-      token = strtok(NULL, ",");
-      i++;
-    }
+      if(i < 24){
+        Serial.println("[ERROR] Malformed Pi command, not enought values");
+        return;
+      }
+      break;
 
-    if(i < 24){
-      Serial.println("[ERROR] Malformed Pi command, not enought values");
-      return;
-    }
+    case SET_FEEDBACK:
+      token = strtok(NULL, ",");
+      pos_feedback_toggle = (atoi(token)>0)?true:false;
+      break;
+  }
+  if(pi_command.command == SET_POS_SPEED){
+    
   } //else, they are other commands that don't need values
   pi_command.new_command = true;
 }

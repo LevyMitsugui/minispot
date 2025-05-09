@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 import socket as pysocket
+import time
 
 PUB_IPC_SOCKET_PATH = "/tmp/pub_esp_serial_handler.socket" # Default publisher path for IPC socket
 SUB_IPC_SOCKET_PATH = "/tmp/sub_esp_serial_handler.socket" # Default subscriber path for IPC socket
@@ -63,11 +64,18 @@ def main():
     try:
         args = parse_args()
         handler = ESPSerialHandler.ESPSerialHandler(args.port, args.baudrate, verbose=args.verbose)
-        context, socket = setup_zmq_socket(args.pub_socket, args.sub_socket, sub_filters=[""], verbose=args.verbose)
+        context, pub_socket, sub_socket = setup_zmq_socket(args.pub_socket, args.sub_socket, sub_filters=["CMD/ESP"], verbose=args.verbose)
 
-        handler.open()
-        handler.set_callback(publish_data(socket, verbose=args.verbose))
-        handler.read_loop()
+        handler.set_callback(publish_data(pub_socket, verbose=args.verbose))
+        handler.start()
+
+        #TODO Program sending realtime and control messages from sub_socket
+
+
+        while True:
+            time.sleep(1)
+
+
 
     except serial.SerialException as e:
         print(f"[ERROR] Serial port error: {e}")
@@ -86,7 +94,7 @@ def main():
 
     finally:
         if handler.is_open:
-            handler.close()
+            handler.stop()
         if context:
             context.term()
         if socket:

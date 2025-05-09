@@ -145,11 +145,15 @@ if __name__ == "__main__":
     esp_serial.start()
 
     # Send test real-time message
-    esp_serial.set_realtime_msg("<4\n".encode())
+    esp_serial.send_control_msg("<4:1\n".encode())
+    input("Press enter to continue")
+    esp_serial.send_control_msg("<4:0\n".encode())
+    input("Press enter to continue")
 
     try:
         while True:
             time.sleep(1)
+            break;
     except KeyboardInterrupt:
         print("Shutting down...")
         esp_serial.stop()

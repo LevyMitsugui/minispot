@@ -2,7 +2,7 @@
 #ifndef LIEALGEBRA_HPP
 #define LIEALGEBRA_HPP
 
-#include <Eigen/Dense>
+#include <ArduinoEigen/Eigen/Dense>
 
 class LieAlgebra {
 public:

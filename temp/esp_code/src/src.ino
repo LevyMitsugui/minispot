@@ -43,6 +43,8 @@
 
 // ----------------- ADAPT VARIABLES ------------------
 
+#define I_TO_A(i) (i+48)
+
 #include <ArduinoEigen.h>
 #include "Kinematics.hpp"
 #include "SpotModel.hpp"
@@ -65,14 +67,18 @@ int bufferPos= 0;
 
 void processPiCommand(const char* cmd);
 void processTerminalCommand(const char* cmd);
+void processCompoundCommand(const char* cmd);
+void processPiCommandServoFrame(const char* cmd);
+void processMotionCommand(const char* cmd);
 
 enum CONTROL_STATES{
-  SET_POS_SPEED,
-  SET_COMPOUND_CONTROL,
-  SET_STANCE_STRAIGHT,
-  SET_STANCE_PRONE,
-  TOGGLE_LOG,
-  SET_FEEDBACK
+  SET_SERVO_FRAME,      //0
+  SET_COMPOUND_CONTROL, //1
+  SET_MOTION_COMMAND,   //2
+  SET_STANCE_STRAIGHT,  //3
+  SET_STANCE_PRONE,     //4
+  TOGGLE_LOG,           //5
+  SET_FEEDBACK          //6
 };
 enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Servos[12]" below
   FL_SHOULDER, FL_ELBOW, FL_WRIST,
@@ -81,6 +87,18 @@ enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Ser
   RR_SHOULDER, RR_ELBOW, RR_WRIST
 };
 
+typedef struct PI_COMPOUND_FRAME{
+  bool new_command;
+  int command;
+  float rpy[3];       //Roll, Pitch, Yaw
+  float speed_rpy[3]; //Roll, Pitch, Yaw
+  float xyz[3];       //X, Y, Z
+  float speed_xyz[3]; //X, Y, Z
+
+  float feet[4][3];   //X, Y, Z
+  float speed_feet[4][3]; //X, Y, Z
+} PI_COMPOUND_COMMAND;
+
 typedef struct PI_SERVO_FRAME{
   bool new_command;
   int command;
@@ -88,9 +106,16 @@ typedef struct PI_SERVO_FRAME{
   float speed[12];
 } PI_FAST_COMMAND;
 
-CONTROL_STATES control_state = SET_POS_SPEED;
+typedef struct MOTION_COMMAND{
+  float rpy[3];       //Roll, Pitch, Yaw
+  float speed_vector[3]; //X, Y, Z (relative to the robot torso)
+} MOTION_COMMAND;
+
+CONTROL_STATES control_state = SET_COMPOUND_CONTROL;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER;
-PI_FAST_COMMAND pi_command;
+PI_FAST_COMMAND pi_frame_command;
+PI_COMPOUND_COMMAND pi_compound_command;
+MOTION_COMMAND motion_command;
 
 SpotModel model = SpotModel();
 
@@ -863,10 +888,10 @@ void loop(){
     }
   }
 
-  if(pi_command.new_command){
-    pi_command.new_command = false;
+  if(pi_frame_command.new_command){
+    pi_frame_command.new_command = false;
 
-    switch(pi_command.command){
+    switch(pi_frame_command.command){
       case SET_STANCE_STRAIGHT:
         straight_calibration_stance();
         break;
@@ -874,17 +899,17 @@ void loop(){
         prone_calibration_stance();
         break;
         
-      case SET_POS_SPEED:
+      case SET_SERVO_FRAME:
         for(int i = 0; i < 12; i++){
           if(PRINT){
             Serial.print("Servo: ");
             Serial.print(i);
             Serial.print(" Pos: ");
-            Serial.print(pi_command.pos[i]);
+            Serial.print(pi_frame_command.pos[i]);
             Serial.print(" Speed: ");
-            Serial.println(pi_command.speed[i]);
+            Serial.println(pi_frame_command.speed[i]);
           }
-          Servos[i]->SetGoal(pi_command.pos[i], pi_command.speed[i]);
+          Servos[i]->SetGoal(pi_frame_command.pos[i], pi_frame_command.speed[i]);
         }
         Complete_Spot.Update_Spot(0);
         break;
@@ -949,11 +974,11 @@ void loop(){
       straight_calibration_stance();
 
     } else if(flag[0] == 'p'){
-      Serial.println("oh we trying");
+      
       double angles_FR_[3] = {0,0,0}, angles_FL_[3] = {0,0,0}, angles_RL_[3] = {0,0,0}, angles_RR_[3] = {0,0,0};
       double spd = 22.5 / 0.087912;
       double speed_FR_[3] = {spd, spd, spd}, speed_FL_[3] = {spd, spd, spd}, speed_RL_[3] = {spd, spd, spd}, speed_RR_[3] = {spd, spd, spd};
-      Serial.println("oh we trying2");
+      
       dynamic_pose(angles_FR_, angles_FL_, angles_RL_, angles_RR_, speed_FR_, speed_FL_, speed_RL_, speed_RR_);
     } 
 
@@ -1022,9 +1047,14 @@ void serialEvent() {
     if (c == '\n') {
       inputBuffer[bufferPos] = '\0';  // Null-terminate string
       if (bufferPos > 0) {
-        if (inputBuffer[0] == '<') {
+        if(inputBuffer[0] == '<' && inputBuffer[1] == (I_TO_A(SET_SERVO_FRAME))) {
           processPiCommandServoFrame(inputBuffer + 1);
-        } else if (inputBuffer[0] == '>') {
+        } else if (inputBuffer[0] == '<' && inputBuffer[1] == (I_TO_A(SET_COMPOUND_CONTROL))) {
+          processCompoundCommand(inputBuffer + 1);
+        } else if (inputBuffer[0] == '<' && inputBuffer[1] == (I_TO_A(SET_MOTION_COMMAND))) {
+          processMotionCommand(inputBuffer + 1);
+        } else if 
+        else if (inputBuffer[0] == '>') {
           processTerminalCommand(inputBuffer + 1);
         } else {
           Serial.println("[ERROR] Unknown command prefix");
@@ -1062,6 +1092,32 @@ void processPiCommand(const char* cmd) {
   }
 }
 
+void processMotionCommand(const char* cmd) {
+  Serial.print("[PI] Received:");
+  Serial.println(cmd);
+
+  char buf[COMMAND_BUFFER_SIZE];
+  strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
+  buf[COMMAND_BUFFER_SIZE - 1] = '\0';
+  
+  char* token = strtok(buf, ":");
+}
+
+void processCompoundCommand(const char* cmd) {
+  Serial.print("[PI] Received:");
+  Serial.println(cmd);
+  
+  char buf[COMMAND_BUFFER_SIZE];
+  strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
+  buf[COMMAND_BUFFER_SIZE - 1] = '\0';
+  
+  char* token = strtok(buf, ":");
+  pi_compound_command.command = atoi(token);
+
+
+  pi_compound_command.new_command = true;
+}
+
 void processPiCommandServoFrame(const char* cmd){
   Serial.print("[PI] Received:");
   Serial.println(cmd);
@@ -1073,18 +1129,18 @@ void processPiCommandServoFrame(const char* cmd){
 
   char* token = strtok(buf, ":");
 
-  pi_command.command = atoi(token);
+  pi_frame_command.command = atoi(token);
   
   int i = 0;
   int idx = 0;
-  switch(pi_command.command){
-    case SET_POS_SPEED:
+  switch(pi_frame_command.command){
+    case SET_SERVO_FRAME:
       token = strtok(NULL, ",");
       while(token != NULL){
         if(i%2 == 0){
-          pi_command.pos[idx]=atof(token);
+          pi_frame_command.pos[idx]=atof(token);
         }else{
-          pi_command.speed[idx]=atof(token);
+          pi_frame_command.speed[idx]=atof(token);
           idx++;
         }
 
@@ -1103,10 +1159,10 @@ void processPiCommandServoFrame(const char* cmd){
       pos_feedback_toggle = (atoi(token)>0)?true:false;
       break;
   }
-  if(pi_command.command == SET_POS_SPEED){
+  if(pi_frame_command.command == SET_SERVO_FRAME){
     
   } //else, they are other commands that don't need values
-  pi_command.new_command = true;
+  pi_frame_command.new_command = true;
 }
 // --- Terminal Mode Handler ---
 void processTerminalCommand(const char* cmd) {

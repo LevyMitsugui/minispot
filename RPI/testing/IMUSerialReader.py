@@ -55,7 +55,6 @@ class IMUSerialReader:
                 gx, gy, gz = float(data[1]), float(data[2]), float(data[3])
                 ax, ay, az = float(data[4]), float(data[5]), float(data[6])
 
-                #sample = (t, gx, gy, gz, ax, ay, az) #TODO instead of using a tuple, use dict
                 sample = {
                     "time": t,
                     "gyrox": gx,

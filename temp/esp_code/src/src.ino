@@ -782,6 +782,15 @@ void setup(){
   prone_calibration_stance();
   ini = false;
 
+}
+
+void loop(){
+
+  cycle++;
+  if (cycle == 4)
+    cycle = 0;
+
+  delay(250);
   Eigen::Vector3d orn(0.0, 0.0, 0.0);   // roll, pitch, yaw
   Eigen::Vector3d pos(0.0, 0.0, 0.0);   // body position
 
@@ -790,19 +799,12 @@ void setup(){
   Serial.println("Joint Angles in Degrees:");
   for (const auto& leg : joint_angles) {
       for (double angle_rad : leg) {
-          double angle_deg = angle_rad * (180.0 / M_PI);
+          double angle_deg = angle_rad;
           Serial.print(angle_deg, 3);  // 3 decimal places
           Serial.print(" ");
       }
       Serial.println();
   }
-}
-
-void loop(){
-
-  cycle++;
-  if (cycle == 4)
-    cycle = 0;
 
   // Serial.print("ESP/LOOP/CYCLE:");
   // Serial.println(cycle);
@@ -887,6 +889,9 @@ void loop(){
         Complete_Spot.Update_Spot(0);
         break;
       
+        case SET_COMPOUND_CONTROL:
+          
+
       case TOGGLE_LOG:
         if(log_toggle){
           Serial.println("ESP/LOG:Log:true");

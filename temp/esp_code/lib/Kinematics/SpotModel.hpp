@@ -10,14 +10,14 @@
 
 class SpotModel {
 public:
-    SpotModel(double shoulder_length = 0.04,
-              double elbow_length = 0.07,
-              double wrist_length = 0.11,
-              double hip_x = 0.192,
-              double hip_y = 0.085,
-              double foot_x = 0.192,
+    SpotModel(double shoulder_length = 0.045,
+              double elbow_length = 0.08,
+              double wrist_length = 0.103,
+              double hip_x = 0.185,
+              double hip_y = 0.077,
+              double foot_x = 0.185,
               double foot_y = 0.17,
-              double height = 0.10);
+              double height = 0.145);
 
     std::map<std::string, Eigen::Vector3d> HipToFoot(const Eigen::Vector3d& orn,
                                                      const Eigen::Vector3d& pos,

@@ -10,7 +10,14 @@
 
 class SpotModel {
 public:
-    SpotModel();
+    SpotModel(double shoulder_length = 0.04,
+              double elbow_length = 0.07,
+              double wrist_length = 0.11,
+              double hip_x = 0.192,
+              double hip_y = 0.085,
+              double foot_x = 0.192,
+              double foot_y = 0.17,
+              double height = 0.10);
 
     std::map<std::string, Eigen::Vector3d> HipToFoot(const Eigen::Vector3d& orn,
                                                      const Eigen::Vector3d& pos,
@@ -19,14 +26,15 @@ public:
     std::array<std::array<double, 3>, 4> IK(const Eigen::Vector3d& orn,
                                            const Eigen::Vector3d& pos,
                                            const std::map<std::string, Eigen::Matrix4d>& T_bf);
-
+    
+    std::map<std::string, Eigen::Matrix4d> WorldToHip;
+    std::map<std::string, Eigen::Matrix4d> WorldToFoot;
+    
 private:
     double shoulder_length, elbow_length, wrist_length;
     double hip_x, hip_y, foot_x, foot_y, height;
 
     std::map<std::string, Kinematics> Legs;
-    std::map<std::string, Eigen::Matrix4d> WorldToHip;
-    std::map<std::string, Eigen::Matrix4d> WorldToFoot;
 };
 
 #endif // SPOTMODEL_HPP

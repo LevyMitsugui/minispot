@@ -96,6 +96,7 @@ void loop() {
     accel_mps2_y = ay * 0.000061035f * 9.80665f;
     accel_mps2_z = az * 0.000061035f * 9.80665f;
   
+    //string format example "pico/accel:0.000,0.000,0.000"
     String topic = "pico/accel";
     String line = topic + ":" + String(pico_time) + "," + String(accel_mps2_x, 3) + "," + String(accel_mps2_y, 3) + "," + String(accel_mps2_z, 3) + "\n";
     Serial.write(line.c_str(), line.length());

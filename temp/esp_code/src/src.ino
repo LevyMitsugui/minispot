@@ -91,6 +91,9 @@ typedef struct PI_SERVO_FRAME{
 CONTROL_STATES control_state = SET_POS_SPEED;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER;
 PI_FAST_COMMAND pi_command;
+
+SpotModel model = SpotModel();
+
 // ----------------------------------------------------
 
 
@@ -719,9 +722,6 @@ double r;
 void setup(){
   //DEBUG_BEGIN();
   Serial.begin(115200);
-  while(!Serial){
-    delay(1000);
-  }
   Serial.println("ESP/LOG:Starting setup!");
   InitRGB();
 
@@ -781,6 +781,21 @@ void setup(){
 
   prone_calibration_stance();
   ini = false;
+
+  Eigen::Vector3d orn(0.0, 0.0, 0.0);   // roll, pitch, yaw
+  Eigen::Vector3d pos(0.0, 0.0, 0.0);   // body position
+
+  auto joint_angles = model.IK(orn, pos, model.WorldToFoot);
+
+  Serial.println("Joint Angles in Degrees:");
+  for (const auto& leg : joint_angles) {
+      for (double angle_rad : leg) {
+          double angle_deg = angle_rad * (180.0 / M_PI);
+          Serial.print(angle_deg, 3);  // 3 decimal places
+          Serial.print(" ");
+      }
+      Serial.println();
+  }
 }
 
 void loop(){
@@ -891,17 +906,6 @@ void loop(){
         break;
     }
   }
-
-  // int rpi_msg_rec = read_message(RPI_message_temp, &RPI_message_length);
-
-  // if(rpi_msg_rec >0){
-  //   memcpy(RPI_message, RPI_message_temp, RPI_message_length);
-  //   memset(RPI_message_temp, 0, COMMAND_BUFFER_SIZE);
-  //   Serial.println(RPI_message);
-  //   // received = true;
-  // } else if(rpi_msg_rec == 0){
-  //   Serial.print(RPI_message_temp);
-  // }
    
   if(received){
     char incoming_msgs_list[4][MAX_BUFFER_LEN] = {0};

@@ -2,15 +2,22 @@
 #include "SpotModel.hpp"
 #include <vector>
 
-SpotModel::SpotModel() {
-    shoulder_length = 0.04;
-    elbow_length = 0.07;
-    wrist_length = 0.11;
-    hip_x = 0.192;
-    hip_y = 0.085;
-    foot_x = 0.192;
-    foot_y = 0.17;
-    height = 0.10;
+SpotModel::SpotModel(double shoulder_length,
+                     double elbow_length,
+                     double wrist_length,
+                     double hip_x,
+                     double hip_y,
+                     double foot_x,
+                     double foot_y,
+                     double height)
+    : shoulder_length(shoulder_length),
+      elbow_length(elbow_length),
+      wrist_length(wrist_length),
+      hip_x(hip_x),
+      hip_y(hip_y),
+      foot_x(foot_x),
+      foot_y(foot_y),
+      height(height) {
 
     Legs["FL"].Initialize(shoulder_length, elbow_length, wrist_length);
     Legs["FR"].Initialize(shoulder_length, elbow_length, wrist_length);

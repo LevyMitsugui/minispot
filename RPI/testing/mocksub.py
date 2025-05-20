@@ -5,7 +5,7 @@ import socket as pysocket
 sockets_paths = ["/tmp/pico_serial_handler.socket",
                  "/tmp/static_pose_command.socket",
                  "/tmp/pub_esp_serial_handler.socket"]
-sockets_tcp = [{'ip':"10.227.157.156", 'port': 5000}]
+sockets_tcp = [{'ip':"10.227.148.52", 'port': 5555}]
 
 
 def is_port_open(host: str, port: int, timeout=2):
@@ -37,6 +37,7 @@ socket.setsockopt_string(zmq.SUBSCRIBE, "pico/log")
 socket.setsockopt_string(zmq.SUBSCRIBE, "command")
 socket.setsockopt_string(zmq.SUBSCRIBE, "ESP/FB/FL")
 socket.setsockopt_string(zmq.SUBSCRIBE, "ESP/FB/RL")
+socket.setsockopt_string(zmq.SUBSCRIBE, "CMD/ESP")
 try:
     while True:
         topic, data = socket.recv_multipart()

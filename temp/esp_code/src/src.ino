@@ -43,8 +43,6 @@
 
 // ----------------- ADAPT VARIABLES ------------------
 
-#define I_TO_A(i) (i+48)
-
 #include <ArduinoEigen.h>
 #include "Kinematics.hpp"
 #include "SpotModel.hpp"
@@ -67,18 +65,17 @@ int bufferPos= 0;
 
 void processPiCommand(const char* cmd);
 void processTerminalCommand(const char* cmd);
-void processCompoundCommand(const char* cmd);
-void processPiCommandServoFrame(const char* cmd);
-void processMotionCommand(const char* cmd);
+int parseServoFrame(const char* buf);
+int parseOffsetLean(const char* buf);
 
 enum CONTROL_STATES{
-  SET_SERVO_FRAME,      //0
-  SET_COMPOUND_CONTROL, //1
-  SET_MOTION_COMMAND,   //2
-  SET_STANCE_STRAIGHT,  //3
-  SET_STANCE_PRONE,     //4
-  TOGGLE_LOG,           //5
-  SET_FEEDBACK          //6
+  IDLE,               //0
+  SET_SERVO_FRAME,    //1
+  SET_OFFSET_LEAN,    //2
+  SET_STANCE_STRAIGHT,//3
+  SET_STANCE_PRONE,   //4
+  TOGGLE_LOG,         //5
+  SET_FEEDBACK        //6
 };
 enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Servos[12]" below
   FL_SHOULDER, FL_ELBOW, FL_WRIST,
@@ -87,38 +84,41 @@ enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Ser
   RR_SHOULDER, RR_ELBOW, RR_WRIST
 };
 
-typedef struct PI_COMPOUND_FRAME{
-  bool new_command;
-  int command;
+typedef struct OFFSET_LEAN_FRAME{
   float rpy[3];       //Roll, Pitch, Yaw
-  float speed_rpy[3]; //Roll, Pitch, Yaw
   float xyz[3];       //X, Y, Z
-  float speed_xyz[3]; //X, Y, Z
 
-  float feet[4][3];   //X, Y, Z
-  float speed_feet[4][3]; //X, Y, Z
-} PI_COMPOUND_COMMAND;
+} OFFSET_LEAN_FRAME;
 
-typedef struct PI_SERVO_FRAME{
-  bool new_command;
-  int command;
+typedef struct SERVO_FRAME{
   float pos[12];
   float speed[12];
-} PI_FAST_COMMAND;
+} SERVO_FRAME;
 
-typedef struct MOTION_COMMAND{
-  float rpy[3];       //Roll, Pitch, Yaw
-  float speed_vector[3]; //X, Y, Z (relative to the robot torso)
-} MOTION_COMMAND;
+typedef struct PI_COMMAND{
+  bool new_command;
+  int command;
+  
+  char package[COMMAND_BUFFER_SIZE];
+  int package_len;
 
-CONTROL_STATES control_state = SET_COMPOUND_CONTROL;
+  void* parser_struct;
+} PI_COMMAND;
+
+SERVO_FRAME servo_frame;
+CONTROL_STATES control_state = IDLE;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER;
-PI_FAST_COMMAND pi_frame_command;
-PI_COMPOUND_COMMAND pi_compound_command;
-MOTION_COMMAND motion_command;
+OFFSET_LEAN_FRAME offset_lean_frame = {{0}, {0}};
+PI_COMMAND pi_command = {false, 0, {0}, 0, NULL};
+bool new_command = false;
+
 
 SpotModel model = SpotModel();
-
+int iterator = 0;
+Eigen::Vector3d orn(0,0,0);   // roll, pitch, yaw
+Eigen::Vector3d pos(0,0,0);   // body position
+auto joint_angles = model.IK(orn, pos, model.WorldToFoot);
+#define SPEED 125
 // ----------------------------------------------------
 
 
@@ -806,7 +806,6 @@ void setup(){
 
   prone_calibration_stance();
   ini = false;
-
 }
 
 void loop(){
@@ -815,24 +814,8 @@ void loop(){
   if (cycle == 4)
     cycle = 0;
 
-  delay(250);
-  Eigen::Vector3d orn(0.0, 0.0, 0.0);   // roll, pitch, yaw
-  Eigen::Vector3d pos(0.0, 0.0, 0.0);   // body position
-
-  auto joint_angles = model.IK(orn, pos, model.WorldToFoot);
-
-  Serial.println("Joint Angles in Degrees:");
-  for (const auto& leg : joint_angles) {
-      for (double angle_rad : leg) {
-          double angle_deg = angle_rad;
-          Serial.print(angle_deg, 3);  // 3 decimal places
-          Serial.print(" ");
-      }
-      Serial.println();
-  }
-
-  // Serial.print("ESP/LOOP/CYCLE:");
-  // Serial.println(cycle);
+  //Serial.print("ESP/LOOP/CYCLE:");
+  //Serial.println(cycle);
   
   if(pos_feedback_toggle){
     if (cycle == 0){ 
@@ -865,33 +848,11 @@ void loop(){
     Serial.println(positionWrist);
   }
  
-  if(false)//(ini == true) //MUDAR ISTO
-  {
-    memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    received = get_message(incoming_msg);
-    Serial.print("ESP/DEBUG/MAIN_LOOP:Received:");
-    Serial.println(incoming_msg);
-  }
- 
- 
-  if (false){ //Serial.available()) {
-    char incoming_char = Serial.read();
-    Serial.print("Received: ");
-    Serial.println(incoming_char);
 
-    if (incoming_char == 's') {
-      prone_calibration_stance();
+  if(pi_command.new_command){
+    pi_command.new_command = false;
 
-    } else if(incoming_char == 'a'){
-      straight_calibration_stance();
-
-    }
-  }
-
-  if(pi_frame_command.new_command){
-    pi_frame_command.new_command = false;
-
-    switch(pi_frame_command.command){
+    switch(pi_command.command){
       case SET_STANCE_STRAIGHT:
         straight_calibration_stance();
         break;
@@ -900,23 +861,51 @@ void loop(){
         break;
         
       case SET_SERVO_FRAME:
+        if(parseServoFrame(pi_command.package+2)<0)
+          break;
         for(int i = 0; i < 12; i++){
           if(PRINT){
             Serial.print("Servo: ");
             Serial.print(i);
             Serial.print(" Pos: ");
-            Serial.print(pi_frame_command.pos[i]);
+            Serial.print(servo_frame.pos[i]);
             Serial.print(" Speed: ");
-            Serial.println(pi_frame_command.speed[i]);
+            Serial.println(servo_frame.speed[i]);
           }
-          Servos[i]->SetGoal(pi_frame_command.pos[i], pi_frame_command.speed[i]);
+          Servos[i]->SetGoal(servo_frame.pos[i], servo_frame.speed[i]);
         }
         Complete_Spot.Update_Spot(0);
         break;
       
-        case SET_COMPOUND_CONTROL:
-          
+      case SET_OFFSET_LEAN:
+        if(parseOffsetLean(pi_command.package+2)<0)
+        //if(parseServoFrame(pi_command.package+2)<0)
+          break;
+        Serial.println("Offset Lean:");
+        orn.x() = offset_lean_frame.rpy[0];
+        orn.y() = offset_lean_frame.rpy[1];
+        orn.z() = offset_lean_frame.rpy[2];
 
+        pos.x() = offset_lean_frame.xyz[0];
+        pos.y() = offset_lean_frame.xyz[1];
+        pos.z() = offset_lean_frame.xyz[2];
+
+        joint_angles = model.IK(orn, pos, model.WorldToFoot);
+
+        Serial.println("Joint Angles in Degrees:");
+        iterator=0;
+        for (const auto& leg : joint_angles) {
+          for (double angle_rad : leg) {
+            Servos[iterator]->SetGoal(angle_rad, SPEED);
+            iterator+=1;
+            Serial.print(angle_rad, 3);  // 3 decimal places
+            Serial.print(" ");
+          }
+          Serial.println();
+        }
+        Complete_Spot.Update_Spot(0);
+        break;
+      
       case TOGGLE_LOG:
         if(log_toggle){
           Serial.println("ESP/LOG:Log:true");
@@ -935,108 +924,7 @@ void loop(){
       default:
         break;
     }
-  }
-   
-  if(received){
-    char incoming_msgs_list[4][MAX_BUFFER_LEN] = {0};
-    uint8_t start = 0;
-    startTime = micros();
-    //send_message(incoming_msg);
-    flag[0] = incoming_msg[0];
-    ini = true;
-    
-
-    if(flag[0] == 'A'){
-      sprintf(response, "%s", ACK);
-      start++;
-    }
-
-    if (flag[0] == 't'){
-      memset(incoming_msg, 0, MAX_BUFFER_LEN);
-        
-      double l_shoulder = 0.0, l_elbow = -50, l_wrist = 90.0;
-      double r_shoulder = 0.0, r_elbow = 50, r_wrist = -90;
-      double speed = 45 / 0.087912;
-      float timee = millis();
-      set_stance_wspeed(l_shoulder, l_elbow, l_wrist, r_shoulder, r_elbow, r_wrist, speed);
-      timee = millis() - timee;
-      Serial.print("Speed: ");
-      Serial.print(speed);
-      Serial.print("Time: ");
-      Serial.println(timee/1000);
-
-    } else if(flag[0] == 's'){
-      memset(incoming_msg, 0, MAX_BUFFER_LEN);
-      prone_calibration_stance();
-
-    } else if(flag[0] == 'a'){
-      memset(incoming_msg, 0, MAX_BUFFER_LEN);
-      straight_calibration_stance();
-
-    } else if(flag[0] == 'p'){
-      
-      double angles_FR_[3] = {0,0,0}, angles_FL_[3] = {0,0,0}, angles_RL_[3] = {0,0,0}, angles_RR_[3] = {0,0,0};
-      double spd = 22.5 / 0.087912;
-      double speed_FR_[3] = {spd, spd, spd}, speed_FL_[3] = {spd, spd, spd}, speed_RL_[3] = {spd, spd, spd}, speed_RR_[3] = {spd, spd, spd};
-      
-      dynamic_pose(angles_FR_, angles_FL_, angles_RL_, angles_RR_, speed_FR_, speed_FL_, speed_RL_, speed_RR_);
-    } 
-
-    // if (flag[0] == 'C'){     //CALIBRATION
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   Load_Test(FL_Elbow);
-    // }
-    // else if (flag[0] == 'P'){ //PRONE
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   prone_calibration_stance();
-    // }
-    // else if (flag[0] == '8'){ //PRONE
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   prone_calibration_stance();
-    //   exit(0);
-    // }
-    
-    // else if(flag[0]=='1'){ //FORWARD
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   DEBUG_I("1");
-    //   perform_gait(shoulder_list_F,elbow_list_F,wrist_list_F,received,incoming_msg);
-    // }
-    // else if(flag[0]=='2'){ //BACKWARD
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   DEBUG_I("2");
-    //   perform_gait(shoulder_list_B,elbow_list_B,wrist_list_B,received,incoming_msg);
-    // }
-    // else if(flag[0]=='3'){ //RIGHT
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   DEBUG_I("3");
-    //   perform_gait(shoulder_list_R,elbow_list_R,wrist_list_R,received,incoming_msg);
-    // }
-    // else if(flag[0]=='4'){ //LEFT
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   DEBUG_I("4");
-    //   perform_gait(shoulder_list_L,elbow_list_L,wrist_list_L,received,incoming_msg);
-    // }
-    // else if(flag[0]=='5'){ //RIGHT ROTATION
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   DEBUG_I("5");
-    //   perform_gait(shoulder_list_RR,elbow_list_RR,wrist_list_RR,received,incoming_msg);
-    // }
-    // else if(flag[0]=='6'){ //LEFT ROTATION
-    //   memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //   DEBUG_I("6");
-    //   perform_gait(shoulder_list_RL,elbow_list_RL,wrist_list_RL,received,incoming_msg);
-    // }
-    // else if (flag[0]=='7'){
-    //   if (custom_gait_ini){
-    //     memset(incoming_msg, 0, MAX_BUFFER_LEN);
-    //     DEBUG_I("7");
-    //     perform_gait(shoulder_list_custom,elbow_list_custom,wrist_list_custom,received,incoming_msg);
-    //   }
-    //   else{
-    //     send_message("GNo Custom Gait Loaded!");
-    //   }
-    // }
-    received = false;
+    Serial.println("out of switch");
   }
 }
 
@@ -1047,14 +935,9 @@ void serialEvent() {
     if (c == '\n') {
       inputBuffer[bufferPos] = '\0';  // Null-terminate string
       if (bufferPos > 0) {
-        if(inputBuffer[0] == '<' && inputBuffer[1] == (I_TO_A(SET_SERVO_FRAME))) {
-          processPiCommandServoFrame(inputBuffer + 1);
-        } else if (inputBuffer[0] == '<' && inputBuffer[1] == (I_TO_A(SET_COMPOUND_CONTROL))) {
-          processCompoundCommand(inputBuffer + 1);
-        } else if (inputBuffer[0] == '<' && inputBuffer[1] == (I_TO_A(SET_MOTION_COMMAND))) {
-          processMotionCommand(inputBuffer + 1);
-        } else if 
-        else if (inputBuffer[0] == '>') {
+        if (inputBuffer[0] == '<') {
+          processPiCommand(inputBuffer + 1);
+        } else if (inputBuffer[0] == '>') {
           processTerminalCommand(inputBuffer + 1);
         } else {
           Serial.println("[ERROR] Unknown command prefix");
@@ -1075,94 +958,16 @@ void processPiCommand(const char* cmd) {
   Serial.print("ESP/LOG/SerialEvent:Received:");
   Serial.println(cmd);
 
-  // Example: LRS/pos:120.3
-  char part[16];
-  char type[16];
-  float value;
+  //char buf[COMMAND_BUFFER_SIZE];
+  //strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
+  //buf[COMMAND_BUFFER_SIZE - 1] = '\0';
+  strncpy(pi_command.package, cmd, COMMAND_BUFFER_SIZE);
+  pi_command.package[COMMAND_BUFFER_SIZE - 1] = '\0'; 
 
-  int matched = sscanf(cmd, "%15[^/]/%15[^:]:%f", part, type, &value);
-  if (matched == 3) {
-    Serial.print("[PI] Target: "); Serial.println(part);
-    Serial.print("[PI] Type: "); Serial.println(type);
-    Serial.print("[PI] Value: "); Serial.println(value,8);
-
-    // TODO: Match `part` and `type` and apply SetGoal or similar logic
-  } else {
-    Serial.println("[ERROR] Malformed Pi command");
-  }
-}
-
-void processMotionCommand(const char* cmd) {
-  Serial.print("[PI] Received:");
-  Serial.println(cmd);
-
-  char buf[COMMAND_BUFFER_SIZE];
-  strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
-  buf[COMMAND_BUFFER_SIZE - 1] = '\0';
-  
-  char* token = strtok(buf, ":");
-}
-
-void processCompoundCommand(const char* cmd) {
-  Serial.print("[PI] Received:");
-  Serial.println(cmd);
-  
-  char buf[COMMAND_BUFFER_SIZE];
-  strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
-  buf[COMMAND_BUFFER_SIZE - 1] = '\0';
-  
-  char* token = strtok(buf, ":");
-  pi_compound_command.command = atoi(token);
-
-
-  pi_compound_command.new_command = true;
-}
-
-void processPiCommandServoFrame(const char* cmd){
-  Serial.print("[PI] Received:");
-  Serial.println(cmd);
-  
-  char buf[COMMAND_BUFFER_SIZE];
-  strncpy(buf, cmd, COMMAND_BUFFER_SIZE);
-  buf[COMMAND_BUFFER_SIZE - 1] = '\0';
-  
-
-  char* token = strtok(buf, ":");
-
-  pi_frame_command.command = atoi(token);
-  
-  int i = 0;
-  int idx = 0;
-  switch(pi_frame_command.command){
-    case SET_SERVO_FRAME:
-      token = strtok(NULL, ",");
-      while(token != NULL){
-        if(i%2 == 0){
-          pi_frame_command.pos[idx]=atof(token);
-        }else{
-          pi_frame_command.speed[idx]=atof(token);
-          idx++;
-        }
-
-        token = strtok(NULL, ",");
-        i++;
-      }
-
-      if(i < 24){
-        Serial.println("[ERROR] Malformed Pi command, not enought values");
-        return;
-      }
-      break;
-
-    case SET_FEEDBACK:
-      token = strtok(NULL, ",");
-      pos_feedback_toggle = (atoi(token)>0)?true:false;
-      break;
-  }
-  if(pi_frame_command.command == SET_SERVO_FRAME){
-    
-  } //else, they are other commands that don't need values
-  pi_frame_command.new_command = true;
+  char* token = strtok(pi_command.package, ":");
+  pi_command.command = atoi(token);
+  pi_command.new_command = true;
+  //strncpy(pi_command.package, buf, COMMAND_BUFFER_SIZE);
 }
 // --- Terminal Mode Handler ---
 void processTerminalCommand(const char* cmd) {
@@ -1188,4 +993,39 @@ void processTerminalCommand(const char* cmd) {
       // updateangle(arg1, arg2); // Call your actual function
     }
   }
+}
+
+int parseServoFrame(char* buf){
+  int i = 0;
+  int idx = 0;
+
+  char* token = strtok(buf, ",");
+  while(token != NULL){
+    if(i%2 == 0){
+      servo_frame.pos[idx]=atof(token);
+    }else{
+      servo_frame.speed[idx]=atof(token);
+      idx++;
+    }
+    token = strtok(NULL, ",");
+    i++;
+  }
+  if (i<24){
+    return -1;
+    Serial.println("[ERROR] Invalid servo frame");
+  }
+  return 0;
+}
+
+int parseOffsetLean(char* buf) {
+  char* token = strtok(buf, ",");
+  for (int i = 0; i < 3; i++) {
+    //Serial.println(token);
+    offset_lean_frame.xyz[i] = atof(token);
+    token = strtok(NULL, ",");
+    //Serial.println(token);
+    offset_lean_frame.rpy[i] = atof(token);
+    token = strtok(NULL, ",");
+  }
+  return 0;
 }

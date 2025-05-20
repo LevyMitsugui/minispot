@@ -10,6 +10,7 @@ import time
 
 PUB_IPC_SOCKET_PATH = "/tmp/pub_esp_serial_handler.socket" # Default publisher path for IPC socket
 SUB_IPC_SOCKET_PATH = "/tmp/sub_esp_serial_handler.socket" # Default subscriber path for IPC socket
+PORT = 5555
 
 def parse_args():
     parser = argparse.ArgumentParser(description="ESP Serial Handler")
@@ -17,6 +18,7 @@ def parse_args():
     parser.add_argument("-b", "--baudrate", type=int, default=115200, help="Baudrate for the serial connection")
     parser.add_argument("--pub-socket", "--socket_path_pub", type=str, default=PUB_IPC_SOCKET_PATH, help="Path to the IPC output socket")
     parser.add_argument("--sub-socket", "--socket_path_sub", type=str, default=SUB_IPC_SOCKET_PATH, help="Path to the IPC input socket")
+    parser.add_argument("--sub-port", "--port_sub", type=int, help="Port for the Input Socket")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
@@ -26,7 +28,7 @@ def parse_args():
 
     return args
 
-def setup_zmq_socket(pub_socket_path, sub_socket_path, sub_filters=[""], verbose=False):
+def setup_zmq_socket(pub_socket_path, sub_socket_path, port, sub_filters=[""], verbose=False):
     if os.path.exists(pub_socket_path):
         os.remove(pub_socket_path)
 
@@ -38,7 +40,11 @@ def setup_zmq_socket(pub_socket_path, sub_socket_path, sub_filters=[""], verbose
 
     # Set up SUB socket (we connect to this one)
     sub_socket = context.socket(zmq.SUB)
-    sub_socket.connect(f"ipc://{sub_socket_path}")
+    if(port):
+        sub_socket.connect(f"tcp://{sub_socket_path}:{port}")
+    else:
+        sub_socket.connect(f"ipc://{sub_socket_path}")
+
     for topic_filter in sub_filters:
         sub_socket.setsockopt_string(zmq.SUBSCRIBE, topic_filter)
 
@@ -64,16 +70,34 @@ def main():
     try:
         args = parse_args()
         handler = ESPSerialHandler.ESPSerialHandler(args.port, args.baudrate, verbose=args.verbose)
-        context, pub_socket, sub_socket = setup_zmq_socket(args.pub_socket, args.sub_socket, sub_filters=["CMD/ESP"], verbose=args.verbose)
+        context, pub_socket, sub_socket = setup_zmq_socket(args.pub_socket, args.sub_socket, args.sub_port, sub_filters=["CMD/ESP"], verbose=args.verbose)
 
         handler.set_callback(publish_data(pub_socket, verbose=args.verbose))
         handler.start()
 
         #TODO Program sending realtime and control messages from sub_socket
-
+        
+        x = 0
+        y = 0
+        z = 0
+        roll = 0
+        pitch = 0
+        yaw = 0
 
         while True:
-            time.sleep(1)
+            topic, data = sub_socket.recv_multipart()
+            data = msgpack.unpackb(data, raw=False)
+            
+            if topic.decode() == "CMD/ESP/roll":
+                roll = data[0]
+            elif topic.decode() == "CMD/ESP/pitch":
+                pitch = data[0]
+            elif topic.decode() == "CMD/ESP/yaw":
+                yaw = data[0]
+            elif topic.decode() == "CMD/ESP/z":
+                z = data[0]
+            print(topic.decode(), data)
+            handler.set_realtime_msg(f"<2:{x},{roll},{y},{pitch},{z},{yaw}")
 
 
 

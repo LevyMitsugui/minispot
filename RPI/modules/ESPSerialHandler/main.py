@@ -80,24 +80,29 @@ def main():
         x = 0
         y = 0
         z = 0
-        roll = 0
+        roll = 0.0
         pitch = 0
         yaw = 0
+        msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw}\n"
+        print(msg)
+        handler.set_realtime_msg(msg.encode())
 
         while True:
             topic, data = sub_socket.recv_multipart()
             data = msgpack.unpackb(data, raw=False)
-            
             if topic.decode() == "CMD/ESP/roll":
-                roll = data[0]
+                roll = data
             elif topic.decode() == "CMD/ESP/pitch":
-                pitch = data[0]
+                pitch = data
             elif topic.decode() == "CMD/ESP/yaw":
-                yaw = data[0]
-            elif topic.decode() == "CMD/ESP/z":
-                z = data[0]
-            print(topic.decode(), data)
-            handler.set_realtime_msg(f"<2:{x},{roll},{y},{pitch},{z},{yaw}")
+                yaw = data
+            elif topic.decode() == "CMD/ESP/x":
+                x = data
+            elif topic.decode() == "CMD/ESP/y":
+                y = data
+            msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw}\n"
+            print(msg)
+            handler.set_realtime_msg(msg.encode())
 
 
 
@@ -121,8 +126,8 @@ def main():
             handler.stop()
         if context:
             context.term()
-        if socket:
-            socket.close()
+        if pub_socket:
+            pub_socket.close()
         if os.path.exists(args.socket_path):
             os.remove(args.socket_path)
 

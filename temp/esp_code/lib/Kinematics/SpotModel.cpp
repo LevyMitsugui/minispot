@@ -65,10 +65,20 @@ std::array<std::array<double, 3>, 4> SpotModel::IK(const Eigen::Vector3d& orn,
     std::vector<std::string> order = {"FL", "FR", "BL", "BR"};
     auto HipToFootVectors = HipToFoot(orn, pos, T_bf);
 
+    // for (const auto& [key, vec] : HipToFootVectors) {
+    //     Serial.print(key.c_str());
+    //     Serial.print(": ");
+    //     Serial.print(vec.x(), 3);
+    //     Serial.print(", ");
+    //     Serial.print(vec.y(), 3);
+    //     Serial.print(", ");
+    //     Serial.println(vec.z(), 3);
+    // } 
+
     for (size_t i = 0; i < order.size(); ++i) {
         double angles[3];
         const auto& key = order[i];
-        Eigen::Vector3d p_hf = HipToFootVectors[key];
+        Eigen::Vector3d p_hf = HipToFootVectors[key];  
         Legs[key].GetJointAngles(p_hf[0], p_hf[1], p_hf[2], key == "FR" || key == "BR" ? Right : Left, angles);
         for (int j = 0; j < 3; ++j) {
             joint_angles[i][j] = angles[j];

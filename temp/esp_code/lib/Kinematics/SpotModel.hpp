@@ -29,12 +29,13 @@ public:
     
     std::map<std::string, Eigen::Matrix4d> WorldToHip;
     std::map<std::string, Eigen::Matrix4d> WorldToFoot;
+    std::map<std::string, Kinematics> Legs;
     
 private:
     double shoulder_length, elbow_length, wrist_length;
     double hip_x, hip_y, foot_x, foot_y, height;
 
-    std::map<std::string, Kinematics> Legs;
+    //std::map<std::string, Kinematics> Legs;
 };
 
 #endif // SPOTMODEL_HPP

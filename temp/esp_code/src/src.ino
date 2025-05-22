@@ -111,6 +111,7 @@ SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER;
 OFFSET_LEAN_FRAME offset_lean_frame = {{0}, {0}};
 PI_COMMAND pi_command = {false, 0, {0}, 0, NULL};
 bool new_command = false;
+bool update_motors = false;
 
 
 SpotModel model = SpotModel();
@@ -741,8 +742,37 @@ void prone_calibration_stance(){
 }
  
  
- 
-double r;
+void testIKSymmetry() {
+    SpotModel test_model = SpotModel(0.045, 0.08, 0.103, 0.185, 0.077, 0.185, 0.17, 0.145);
+
+    Eigen::Vector3d test_FL(0.1,  0.05, -0.15);
+    Eigen::Vector3d test_FR(0.1, -0.05, -0.15);
+    Eigen::Vector3d test_BL(-0.1,  0.05, -0.15);
+    Eigen::Vector3d test_BR(-0.1, -0.05, -0.15);
+
+    double angles_FL[3], angles_FR[3], angles_BL[3], angles_BR[3];
+
+    test_model.Legs["FL"].GetJointAngles(test_FL[0], test_FL[1], test_FL[2], Left, angles_FL);
+    test_model.Legs["FR"].GetJointAngles(test_FR[0], test_FR[1], test_FR[2], Right, angles_FR);
+    test_model.Legs["BL"].GetJointAngles(test_BL[0], test_BL[1], test_BL[2], Left, angles_BL);
+    test_model.Legs["BR"].GetJointAngles(test_BR[0], test_BR[1], test_BR[2], Right, angles_BR);
+
+    Serial.println("FL vs FR:");
+    for (int i = 0; i < 3; ++i) {
+        Serial.print("  ");
+        Serial.print(angles_FL[i] * 180.0 / M_PI, 2);
+        Serial.print(" vs ");
+        Serial.println(angles_FR[i] * 180.0 / M_PI, 2);
+    }
+
+    Serial.println("BL vs BR:");
+    for (int i = 0; i < 3; ++i) {
+        Serial.print("  ");
+        Serial.print(angles_BL[i] * 180.0 / M_PI, 2);
+        Serial.print(" vs ");
+        Serial.println(angles_BR[i] * 180.0 / M_PI, 2);
+    }
+}
  
 void setup(){
   //DEBUG_BEGIN();
@@ -805,6 +835,8 @@ void setup(){
   IK.Initialize(0.04, 0.07, 0.11);
 
   prone_calibration_stance();
+  // delay(2000);
+  // testIKSymmetry();
   ini = false;
 }
 
@@ -881,7 +913,7 @@ void loop(){
         if(parseOffsetLean(pi_command.package+2)<0)
         //if(parseServoFrame(pi_command.package+2)<0)
           break;
-        Serial.println("Offset Lean:");
+        //Serial.println("Offset Lean:");
         orn.x() = offset_lean_frame.rpy[0];
         orn.y() = offset_lean_frame.rpy[1];
         orn.z() = offset_lean_frame.rpy[2];
@@ -890,20 +922,35 @@ void loop(){
         pos.y() = offset_lean_frame.xyz[1];
         pos.z() = offset_lean_frame.xyz[2];
 
+        Serial.print("roll: ");
+        Serial.print(orn.x(), 3);
+        Serial.print(", pitch: ");
+        Serial.print(orn.y(), 3);
+        Serial.print(", yaw: ");
+        Serial.print(orn.z(), 3);
+        Serial.print(", x: ");
+        Serial.print(pos.x(), 3);
+        Serial.print(", y: ");
+        Serial.print(pos.y(), 3);
+        Serial.print(", z: ");
+        Serial.println(pos.z(), 3);
+
         joint_angles = model.IK(orn, pos, model.WorldToFoot);
 
-        Serial.println("Joint Angles in Degrees:");
+        //Serial.println("Joint Angles in Degrees:");
         iterator=0;
         for (const auto& leg : joint_angles) {
           for (double angle_rad : leg) {
-            Servos[iterator]->SetGoal(angle_rad, SPEED);
+            if(update_motors)
+              Servos[iterator]->SetGoal(angle_rad, SPEED);
             iterator+=1;
             Serial.print(angle_rad, 3);  // 3 decimal places
             Serial.print(" ");
           }
           Serial.println();
         }
-        Complete_Spot.Update_Spot(0);
+        if (update_motors)
+          Complete_Spot.Update_Spot(0);
         break;
       
       case TOGGLE_LOG:
@@ -924,7 +971,7 @@ void loop(){
       default:
         break;
     }
-    Serial.println("out of switch");
+    //Serial.println("out of switch");
   }
 }
 
@@ -939,6 +986,10 @@ void serialEvent() {
           processPiCommand(inputBuffer + 1);
         } else if (inputBuffer[0] == '>') {
           processTerminalCommand(inputBuffer + 1);
+        } else if(inputBuffer[0] == '/' && inputBuffer[1] == 'k'){
+          ESP.restart();
+        } else if(inputBuffer[0] == 'm'){
+          update_motors = !update_motors;
         } else {
           Serial.println("[ERROR] Unknown command prefix");
         }
@@ -955,8 +1006,8 @@ void serialEvent() {
 
 // --- Machine Mode Handler ---
 void processPiCommand(const char* cmd) {
-  Serial.print("ESP/LOG/SerialEvent:Received:");
-  Serial.println(cmd);
+  //Serial.print("ESP/LOG/SerialEvent:Received:");
+  //Serial.println(cmd);
 
   //char buf[COMMAND_BUFFER_SIZE];
   //strncpy(buf, cmd, COMMAND_BUFFER_SIZE);

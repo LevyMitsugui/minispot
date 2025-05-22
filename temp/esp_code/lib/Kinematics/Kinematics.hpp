@@ -11,6 +11,9 @@ class Kinematics {
         double shoulder_length = 0.0;
         double elbow_length = 0.0;
         double wrist_length = 0.0;
+		
+		double NormalizeAngle(double angle);
+
 	public:
 		// using default constructor
 

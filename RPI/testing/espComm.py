@@ -71,7 +71,7 @@ except (serial.SerialException, OSError) as e:
     print(f"[ERROR] Serial port error: {e}")
     sys.exit(1)
 
-msg0 = "<0:"
+msg0 = "<1:"
 for joint in joint_angles0:
     for pos in joint:
         msg0 += "{:.3f},".format(pos)
@@ -82,7 +82,7 @@ msg0+="\n"
 print(msg0)
 
 
-msg1 = "<0:"
+msg1 = "<1:"
 for joint in joint_angles1:
     for pos in joint:
         msg1 += "{:.3f},".format(pos)

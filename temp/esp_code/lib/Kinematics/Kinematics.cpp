@@ -37,9 +37,9 @@ void Kinematics::RightIK(const double & x, const double & y, const double & z, c
             			 wrist_length * sin(wrist_angle),
             			 elbow_length + wrist_length * cos(wrist_angle));
 
-	angles[0] = NormalizeAngle(shoulder_angle * (180.0 / M_PI));
-    angles[1] = NormalizeAngle(elbow_angle * (180.0 / M_PI));
-    angles[2] = NormalizeAngle(wrist_angle * (180.0 / M_PI));
+	angles[0] = NormalizeAngle(shoulder_angle);
+    angles[1] = NormalizeAngle(elbow_angle);
+    angles[2] = NormalizeAngle(wrist_angle);
 }
 
 void Kinematics::LeftIK(const double & x, const double & y, const double & z, const double & D, double (& angles) [3])
@@ -56,9 +56,9 @@ void Kinematics::LeftIK(const double & x, const double & y, const double & z, co
             			 wrist_length * sin(wrist_angle),
             			 elbow_length + wrist_length * cos(wrist_angle));
 
-	angles[0] = NormalizeAngle(-shoulder_angle * (180.0 / M_PI));
-    angles[1] = NormalizeAngle(-elbow_angle * (180.0 / M_PI));
-    angles[2] = NormalizeAngle(-wrist_angle * (180.0 / M_PI));
+	angles[0] = NormalizeAngle(-shoulder_angle);
+    angles[1] = NormalizeAngle(-elbow_angle);
+    angles[2] = NormalizeAngle(-wrist_angle);
 }
 
 double Kinematics::GetJointAngles(const double & x, const double & y, const double & z, const LegQuadrant & legquad, double (& angles) [3])

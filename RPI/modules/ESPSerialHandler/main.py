@@ -124,12 +124,13 @@ def main():
     finally:
         if handler.is_open:
             handler.stop()
-        if context:
-            context.term()
+        if pub_socket:
+            pub_socket.setsockopt(zmq.LINGER, 0)
+            pub_socket.close()
         if pub_socket:
             pub_socket.close()
-        if os.path.exists(args.socket_path):
-            os.remove(args.socket_path)
+        if os.path.exists(args.pub_socket):
+            os.remove(args.pub_socket)
 
         if args.verbose:
             print("[INFO] Cleaned up resources.")

@@ -37,13 +37,13 @@ class ESPSerialHandler:
         self.open()
         if self._thread is None:
             self._running = True
-            self._thread = threading.Thread(target=self.read_write_loop, daemon=True)
+            self._thread = threading.Thread(target=self.read_write_loop, daemon=False)
             self._thread.start()
     
     def stop(self):
         self._running = False
         if self._thread:
-            self._thread.join()
+            self._thread.join(timeout=2)
             self._thread = None
         self.close()
     
@@ -73,7 +73,7 @@ class ESPSerialHandler:
         Note: This method is blocking and runs indefinitely until the program is interrupted.
         """
 
-        while True:
+        while self._running:
             if not self.is_open:
                 try:
                     self.open()
@@ -94,7 +94,7 @@ class ESPSerialHandler:
                         print(f"Topic: {topic}, Data: {data}")
                     elif self.verbose:
                         print(f"Failed to parse line: {line}")
-                    if self.callback:
+                    if topic and data and self.callback:
                         self.callback(topic, data)
             
             except (serial.SerialException, OSError) as e:
@@ -108,7 +108,7 @@ class ESPSerialHandler:
                 time.sleep(2)
             
             try:
-                while True:
+                while True and self._running:
                     msg = self.control_queue.get_nowait()
                     self._serial.write(msg)
             except queue.Empty:
@@ -125,6 +125,8 @@ class ESPSerialHandler:
                         self.realtime_msg = None
                 except serial.SerialException as e:
                     print(f"[ERROR] Failed to send real-time msg: {e}")
+        print("[INFO] write loop stopped...")
+
     
     def _parse_serial_line(self, line):
         line = line.decode('utf-8').strip()

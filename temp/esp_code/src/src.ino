@@ -942,9 +942,9 @@ void loop(){
         for (const auto& leg : joint_angles) {
           for (double angle_rad : leg) {
             if(update_motors)
-              Servos[iterator]->SetGoal(angle_rad, SPEED);
+              Servos[iterator]->SetGoal(angle_rad*180/M_PI, SPEED);
             iterator+=1;
-            Serial.print(angle_rad, 3);  // 3 decimal places
+            Serial.print(angle_rad*180/M_PI, 3);  // 3 decimal places
             Serial.print(" ");
           }
           Serial.println();

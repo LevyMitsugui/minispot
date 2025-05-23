@@ -87,3 +87,42 @@ std::array<std::array<double, 3>, 4> SpotModel::IK(const Eigen::Vector3d& orn,
 
     return joint_angles;
 }
+
+// std::array<std::array<double, 3>, 4> SpotModel::IKWithFootOverrides(
+//     const Eigen::Vector3d& orn,
+//     const Eigen::Vector3d& pos,
+//     const std::array<Eigen::Vector3d, 4>& foot_shift) {
+
+//     static const std::array<std::string, 4> order = {"FL", "FR", "BL", "BR"};
+//     std::map<std::string, Eigen::Matrix4d> modifiedTbf = WorldToFoot;
+
+//     for (size_t i = 0; i < order.size(); ++i) {
+//         const std::string& key = order[i];
+//         Eigen::Vector3d base_pos = WorldToFoot.at(key).block<3,1>(0,3);
+//         Eigen::Vector3d new_pos = base_pos + foot_shift[i];
+//         modifiedTbf[key] = LieAlgebra::RpToTrans(Eigen::Matrix3d::Identity(), new_pos);
+//     }
+
+//     return IK(orn, pos, modifiedTbf);
+// }
+
+std::array<std::array<double, 3>, 4> SpotModel::IKWithFootOverrides(
+    const Eigen::Vector3d& orn,
+    const Eigen::Vector3d& pos,
+    const std::array<Eigen::Vector3d, 4>& foot_shift,
+    const std::array<std::string, 4> leg_order) {
+
+    // Apply foot shifts to the default foot positions
+    std::map<std::string, Eigen::Matrix4d> modifiedTbf = WorldToFoot;
+    for (size_t i = 0; i < leg_order.size(); ++i) {
+        const std::string& leg = leg_order[i];
+        Eigen::Vector3d base_pos = WorldToFoot.at(leg).block<3,1>(0,3);
+        Eigen::Vector3d shifted_pos = base_pos + foot_shift[i];
+        modifiedTbf[leg] = LieAlgebra::RpToTrans(Eigen::Matrix3d::Identity(), shifted_pos);
+    }
+
+    // Compute joint angles with the modified foot transforms
+
+    return IK(orn, pos, modifiedTbf);
+}
+

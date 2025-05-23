@@ -37,7 +37,7 @@ void Kinematics::RightIK(const double & x, const double & y, const double & z, c
             			 wrist_length * sin(wrist_angle),
             			 elbow_length + wrist_length * cos(wrist_angle));
 
-	angles[0] = NormalizeAngle(shoulder_angle);
+	angles[0] = NormalizeAngle(-shoulder_angle);
     angles[1] = NormalizeAngle(elbow_angle);
     angles[2] = NormalizeAngle(wrist_angle);
 }

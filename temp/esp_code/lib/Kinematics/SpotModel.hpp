@@ -27,6 +27,17 @@ public:
                                            const Eigen::Vector3d& pos,
                                            const std::map<std::string, Eigen::Matrix4d>& T_bf);
     
+    // std::array<std::array<double, 3>, 4> SpotModel::IKWithFootOverrides(
+    //                                         const Eigen::Vector3d& orn,
+    //                                         const Eigen::Vector3d& pos,
+    //                                         const std::map<std::string, Eigen::Vector3d>& foot_shift);
+    std::array<std::array<double, 3>, 4> IKWithFootOverrides(
+                                        const Eigen::Vector3d& orn,
+                                        const Eigen::Vector3d& pos,
+                                        const std::array<Eigen::Vector3d, 4>& foot_shift,
+                                        const std::array<std::string, 4> leg_order);
+
+    
     std::map<std::string, Eigen::Matrix4d> WorldToHip;
     std::map<std::string, Eigen::Matrix4d> WorldToFoot;
     std::map<std::string, Kinematics> Legs;

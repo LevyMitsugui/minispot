@@ -34,11 +34,11 @@
 #define S_SCL 22
 #define S_SDA 21
 
-#if CONFIG_FREERTOS_UNICORE
-#define ARDUINO_RUNNING_CORE 0
-#else
-#define ARDUINO_RUNNING_CORE 1
-#endif
+// #if CONFIG_FREERTOS_UNICORE
+// #define ARDUINO_RUNNING_CORE 0
+// #else
+// #define ARDUINO_RUNNING_CORE 1
+// #endif
 
 
 // ----------------- ADAPT VARIABLES ------------------
@@ -53,7 +53,16 @@
 #define DEBUG_set_stance_wspeed false
 #define COMMAND_BUFFER_SIZE 256
 
-bool SERIAL_FORWARDING = false;
+
+double shoulder_length = 0.045;
+double elbow_length = 0.08;
+double wrist_length = 0.103;
+double hip_x = 0.185;
+double hip_y = 0.077;
+double foot_x = 0.185;
+double foot_y = 0.17;
+double height = 0.145;
+
 bool pos_feedback_toggle = false;
 bool log_toggle = false;
 
@@ -64,9 +73,9 @@ char inputBuffer[COMMAND_BUFFER_SIZE] = {0};
 int bufferPos= 0;
 
 void processPiCommand(const char* cmd);
-void processTerminalCommand(const char* cmd);
 int parseServoFrame(const char* buf);
 int parseOffsetLean(const char* buf);
+void process_stream_control(char c);
 
 enum CONTROL_STATES{
   IDLE,               //0
@@ -87,7 +96,7 @@ enum SERVOS_CONTROL_IDX{// Follows indexes from the declaration "SpotServo * Ser
 typedef struct OFFSET_LEAN_FRAME{
   float rpy[3];       //Roll, Pitch, Yaw
   float xyz[3];       //X, Y, Z
-
+  float speed;
 } OFFSET_LEAN_FRAME;
 
 typedef struct SERVO_FRAME{
@@ -105,13 +114,29 @@ typedef struct PI_COMMAND{
   void* parser_struct;
 } PI_COMMAND;
 
+typedef struct FEET_STREAM_CONTROL{
+  float step;
+  int selected;
+  std::array<Eigen::Vector3d, 4> feet_shifts;
+} FEET_STREAM_CONTROL;
+
 SERVO_FRAME servo_frame;
 CONTROL_STATES control_state = IDLE;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER;
 OFFSET_LEAN_FRAME offset_lean_frame = {{0}, {0}};
 PI_COMMAND pi_command = {false, 0, {0}, 0, NULL};
+FEET_STREAM_CONTROL feet_stream_control = {0.01, 0, {
+                         Eigen::Vector3d(0,0,0),
+                         Eigen::Vector3d(0,0,0),
+                         Eigen::Vector3d(0,0,0),
+                         Eigen::Vector3d(0,0,0)}};
+
+// helper, TODO remove
+const std::array<std::string, 4> leg_order = {"FL", "FR", "BL", "BR"};
+
 bool new_command = false;
 bool update_motors = false;
+bool stream_control = false;
 
 
 SpotModel model = SpotModel();
@@ -207,32 +232,6 @@ Utilities util;
 double Load = 0;
 
 const int nCyclePoints = 19;
-
-/*
-double shoulder_list_F[4][nCyclePoints] = {0};
-double elbow_list_F[4][nCyclePoints] = {0};
-double wrist_list_F[4][nCyclePoints] = {0};
-
-double shoulder_list_B[4][nCyclePoints] = {0};
-double elbow_list_B[4][nCyclePoints] = {0};
-double wrist_list_B[4][nCyclePoints] = {0};
-
-double shoulder_list_R[4][nCyclePoints] = {0};
-double elbow_list_R[4][nCyclePoints] = {0};
-double wrist_list_R[4][nCyclePoints] = {0};
-
-double shoulder_list_L[4][nCyclePoints] = {0};
-double elbow_list_L[4][nCyclePoints] = {0};
-double wrist_list_L[4][nCyclePoints] = {0};
-
-double shoulder_list_RR[4][nCyclePoints] = {0};
-double elbow_list_RR[4][nCyclePoints] = {0};
-double wrist_list_RR[4][nCyclePoints] = {0};
-
-double shoulder_list_RL[4][nCyclePoints] = {0};
-double elbow_list_RL[4][nCyclePoints] = {0};
-double wrist_list_RL[4][nCyclePoints] = {0};
-*/
 
 double shoulder_list_F[4][nCyclePoints] = {{8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,8},{-8,-9,-9,-9,-9,-9,-9,-9,-9,-8,-8,-8,-8,-8,-8,-8,-9,-9,-9},{8,9,9,9,9,9,9,9,9,8,8,8,8,8,8,8,9,9,9},{-8,-8,-8,-8,-8,-8,-8,-8,-9,-9,-9,-9,-9,-9,-9,-9,-9,-9,-8}};
 double elbow_list_F[4][nCyclePoints] = {{-66,-43,-54,-64,-73,-79,-83,-86,-87,-87,-85,-77,-68,-57,-46,-39,-37,-42,-43},{66,87,84,78,69,58,48,39,36,41,52,66,74,79,83,86,88,87,87},{-66,-87,-84,-78,-69,-58,-48,-39,-36,-41,-52,-66,-74,-79,-83,-86,-88,-87,-87},{66,43,54,64,73,79,83,86,87,87,85,77,68,57,46,39,37,42,43}};
@@ -942,7 +941,7 @@ void loop(){
         for (const auto& leg : joint_angles) {
           for (double angle_rad : leg) {
             if(update_motors)
-              Servos[iterator]->SetGoal(angle_rad*180/M_PI, SPEED);
+              Servos[iterator]->SetGoal(angle_rad*180/M_PI, offset_lean_frame.speed);
             iterator+=1;
             Serial.print(angle_rad*180/M_PI, 3);  // 3 decimal places
             Serial.print(" ");
@@ -973,19 +972,37 @@ void loop(){
     }
     //Serial.println("out of switch");
   }
+
+  if(stream_control){
+    joint_angles = model.IKWithFootOverrides(orn, pos, feet_stream_control.feet_shifts, leg_order);
+
+    iterator=0;
+    for (const auto& leg : joint_angles) {
+      for (double angle_rad : leg) {
+        Servos[iterator]->SetGoal(angle_rad*180/M_PI, offset_lean_frame.speed);
+        iterator+=1;
+        Serial.print(angle_rad*180/M_PI, 3);  // 3 decimal places
+        Serial.print(" ");
+      }
+      Serial.println();
+    }
+
+    Complete_Spot.Update_Spot(0);
+  }
 }
 
 
 void serialEvent() {
   while (Serial.available()) {
     char c = Serial.read();
-    if (c == '\n') {
+    if (c == '\n' && !stream_control) {
       inputBuffer[bufferPos] = '\0';  // Null-terminate string
       if (bufferPos > 0) {
         if (inputBuffer[0] == '<') {
           processPiCommand(inputBuffer + 1);
-        } else if (inputBuffer[0] == '>') {
-          processTerminalCommand(inputBuffer + 1);
+        } else if (inputBuffer[0] == '>') {//handle stream mode
+          Serial.println("ESP/STREAM:Stream Control Enabled");
+          stream_control = true;
         } else if(inputBuffer[0] == '/' && inputBuffer[1] == 'k'){
           ESP.restart();
         } else if(inputBuffer[0] == 'm'){
@@ -995,8 +1012,10 @@ void serialEvent() {
         }
       }
       bufferPos = 0;  // Reset buffer
-    } else if (bufferPos < COMMAND_BUFFER_SIZE - 1) {
+    } else if (!stream_control && (bufferPos < COMMAND_BUFFER_SIZE - 1)) {
       inputBuffer[bufferPos++] = c;
+    } else if (stream_control){
+      process_stream_control(c);
     } else {
       Serial.println("[ERROR] Command too long");
       bufferPos = 0;
@@ -1020,31 +1039,7 @@ void processPiCommand(const char* cmd) {
   pi_command.new_command = true;
   //strncpy(pi_command.package, buf, COMMAND_BUFFER_SIZE);
 }
-// --- Terminal Mode Handler ---
-void processTerminalCommand(const char* cmd) {
-  Serial.print("[TERMINAL] Received: ");
-  Serial.println(cmd);
 
-  char command[32];
-  float arg1, arg2;
-
-  // Check for no-argument command
-  if (sscanf(cmd, "%31s", command) == 1) {
-    if (strcmp(command, "prone") == 0) {
-      Serial.println("[ACTION] Going prone");
-      // prone(); // Call your actual function
-    }
-  }
-
-  // Check for command with two arguments
-  if (sscanf(cmd, "%31s %f %f", command, &arg1, &arg2) == 3) {
-    if (strcmp(command, "updateangle") == 0) {
-      Serial.print("[ACTION] Updating servo "); Serial.print(arg1);
-      Serial.print(" to angle "); Serial.println(arg2);
-      // updateangle(arg1, arg2); // Call your actual function
-    }
-  }
-}
 
 int parseServoFrame(char* buf){
   int i = 0;
@@ -1077,6 +1072,57 @@ int parseOffsetLean(char* buf) {
     //Serial.println(token);
     offset_lean_frame.rpy[i] = atof(token);
     token = strtok(NULL, ",");
+
+    if(i==2){
+      offset_lean_frame.speed = atof(token);
+    }
   }
   return 0;
+}
+
+void process_stream_control(char c){
+  switch(c){
+    case 'q':
+      stream_control = false;
+      Serial.println("ESP/STREAM:Stream Control Disabled");
+      break;
+    case 'm':
+      feet_stream_control.step = feet_stream_control.step + 0.01;
+      break;
+    case 'n':
+      feet_stream_control.step = feet_stream_control.step - 0.01;
+      break;
+    case '1':
+      feet_stream_control.selected = 0;
+      break;
+    case '2':
+      feet_stream_control.selected = 1;
+      break;
+    case '3':
+      feet_stream_control.selected = 2;
+      break;
+    case '4':
+      feet_stream_control.selected = 3;
+      break;
+    case 'i':
+      feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() + feet_stream_control.step;
+      break;
+    case 'k':
+      feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() - feet_stream_control.step;
+      break;
+    case 'j':
+      feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() + feet_stream_control.step;
+      break;
+    case 'l':
+      feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() - feet_stream_control.step;
+      break;
+    case 'u':
+      feet_stream_control.feet_shifts[feet_stream_control.selected].z() = feet_stream_control.feet_shifts[feet_stream_control.selected].z() + feet_stream_control.step;
+      break;
+    case 'o':
+      feet_stream_control.feet_shifts[feet_stream_control.selected].z() = feet_stream_control.feet_shifts[feet_stream_control.selected].z() - feet_stream_control.step;
+      break;
+    default:
+      break;
+  }
 }

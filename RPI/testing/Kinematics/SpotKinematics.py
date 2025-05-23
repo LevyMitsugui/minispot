@@ -18,7 +18,7 @@ class SpotModel:
                  height=0.10,
                  shoulder_lim=[-0.548, 0.548],
                  elbow_lim=[-2.17, 0.97],
-                 wrist_lim=[-0.1, 2.59]):
+                 wrist_lim=[-0.1, 2.13]):
         """
         Spot Micro Kinematics
         """

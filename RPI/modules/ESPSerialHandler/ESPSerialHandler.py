@@ -86,6 +86,7 @@ class ESPSerialHandler:
 
             try:
                 line = self._serial.readline()
+                #line = False
                 if line:
                     self._latest_sample = line
                     self._has_new_data = True

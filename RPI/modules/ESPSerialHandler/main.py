@@ -83,7 +83,8 @@ def main():
         roll = 0.0
         pitch = 0
         yaw = 0
-        msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw}\n"
+        speed = 250
+        msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
         print(msg)
         handler.set_realtime_msg(msg.encode())
 
@@ -100,7 +101,7 @@ def main():
                 x = data
             elif topic.decode() == "CMD/ESP/y":
                 y = data
-            msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw}\n"
+            msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
             print(msg)
             handler.set_realtime_msg(msg.encode())
 

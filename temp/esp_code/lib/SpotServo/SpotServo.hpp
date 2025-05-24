@@ -24,6 +24,14 @@ public:
     /// \param offset_: motor position offset (due to mechanical fit issues)
     /// \param leg_type_: Front Left, Front Right, Back Left, or Back Right leg (see enum)
     /// \param joint_type_: Shoulder, Elbow or Wrist (see enum)
+    SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_);
+
+    /// \brief Initialize parameters
+    /// \param servo_ID: servo id
+    /// \param home_angle_: default joint angle
+    /// \param offset_: motor position offset (due to mechanical fit issues)
+    /// \param leg_type_: Front Left, Front Right, Back Left, or Back Right leg (see enum)
+    /// \param joint_type_: Shoulder, Elbow or Wrist (see enum)
     void Initialize(const int & servo_ID, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_);
 
     /// \brief Commands a motor to move to a certain goal at a certain speed

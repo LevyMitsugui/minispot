@@ -5,6 +5,63 @@
 #include <MacroDebugger.h>
 using namespace std;
 
+// Default Constructor
+SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_) {
+	if (joint_type_ == Shoulder)
+	{
+		min_pos = 1690;
+		max_pos = 2404;
+		min_ang = -31.4;
+		max_ang = 31.4;
+	}
+	else if (joint_type_ == Elbow)
+	{
+		if (leg_type_ == FL || leg_type_ == RL)
+		{
+			min_pos = 634;
+			max_pos = 2679;
+			min_ang = -124.3;
+			max_ang = 55.6;
+		}
+		else if (leg_type_ == FR || leg_type_ == RR)
+		{
+			min_pos = 1415;
+			max_pos = 3460;
+			max_ang = 124.3;
+			min_ang = -55.6;
+		}
+	}
+	else if (joint_type_ == Wrist)
+	{
+		if (leg_type_ == FL || leg_type_ == RL)
+		{
+			min_pos = 1981;
+			max_pos = 3443;
+			min_ang = -5.8;
+			max_ang = 121;
+		}
+		else if (leg_type_ == FR || leg_type_ == RR) 
+		{
+			min_pos = 660;
+			max_pos = 2113;
+			min_ang = -121;
+			max_ang = 5.8;
+		}
+	}
+	servo_ID = servo_ID_;
+	offset = offset_;
+	home_angle = home_angle_;
+	current_pose = home_angle + offset;
+	leg_type = leg_type_;
+	joint_type = joint_type;
+	stand_angle = stand_angle_;
+	goal_pose = stand_angle + offset;
+	update_pose = stand_angle + offset;
+
+	int pos = 2047 + ((stand_angle + offset))/ 0.087912;
+	st.WritePosEx(servo_ID, pos, speed, acc); // 2047 is the center position of the servo
+	last_actuated = millis();
+}
 
 // Spot Full Constructor
 void SpotServo::Initialize(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_)

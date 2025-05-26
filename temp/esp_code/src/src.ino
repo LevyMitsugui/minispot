@@ -306,25 +306,7 @@ void setup()
 
   RGBoff(); // TODO probably will be removed
 
-  delay(5000);
-
-  // FL_Shoulder.Initialize(1, 0, 0, 0, FL, Shoulder);  // 0 | FLS start: 0
-  // FL_Elbow.Initialize(2, 0, 0, 0, FL, Elbow);        // 0 | FLE start: 0
-  // FL_Wrist.Initialize(3, 0, 0, 0, FL, Wrist);        // 0 | FLW start: 0
-
-  // FR_Shoulder.Initialize(4, 0, 0, 0, FR, Shoulder);  // 0 | FRS start: 0
-  // FR_Elbow.Initialize(5, 0, 0, 0, FR, Elbow);        // 0 | FRE start: 0
-  // FR_Wrist.Initialize(6, 0, 0, 0, FR, Wrist);        // 0 | FRW start: 0
-
-  // RL_Shoulder.Initialize(7, 0, 0, 0, RL, Shoulder);  // 0 | RLS start: 0
-  // RL_Elbow.Initialize(8, 0, 0, 0, RL, Elbow);        // 0 | RLE start: 0
-  // RL_Wrist.Initialize(9, 0, 0, 0, RL, Wrist);        // 0 | RLW start: 0
-
-  // RR_Shoulder.Initialize(10, 0, 0, 0, RR, Shoulder);  // 0 | RRS start: 0
-  // RR_Elbow.Initialize(11, 0, 0, 0, RR, Elbow);        // 0 | RRE start: 0
-  // RR_Wrist.Initialize(12, 0, 0, 0, RR, Wrist);        // 0 | RRW start: 0
-
-  delay(1000);
+  delay(100);
 
   // Complete_Spot.Initialize(Servos,12);
 

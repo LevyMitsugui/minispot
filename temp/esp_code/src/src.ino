@@ -6,6 +6,7 @@
 #include "Spot.hpp"
 #include <cstring>
 #include "Arduino.h"
+#include "SerialHandler.hpp"
 
 // the uart used to control servos.
 // GPIO 18 - S_RXD, GPIO 19 - S_TXD, as default.
@@ -37,7 +38,6 @@ double foot_x = 0.185;
 double foot_y = 0.17;
 double height = 0.145;
 
-bool pos_feedback_toggle = false;
 bool log_toggle = false;
 
 int cycle = 0;
@@ -59,7 +59,6 @@ enum CONTROL_STATES
   SET_STANCE_STRAIGHT, // 3
   SET_STANCE_PRONE,    // 4
   TOGGLE_LOG,          // 5
-  SET_FEEDBACK         // 6
 };
 enum SERVOS_CONTROL_IDX
 { // Follows indexes from the declaration "SpotServo * Servos[12]" below
@@ -77,29 +76,29 @@ enum SERVOS_CONTROL_IDX
   RR_WRIST_CONTROL
 };
 
-typedef struct OFFSET_LEAN_FRAME
-{
-  float rpy[3]; // Roll, Pitch, Yaw
-  float xyz[3]; // X, Y, Z
-  float speed;
-} OFFSET_LEAN_FRAME;
+// typedef struct OFFSET_LEAN_FRAME
+// {
+//   float rpy[3]; // Roll, Pitch, Yaw
+//   float xyz[3]; // X, Y, Z
+//   float speed;
+// } OFFSET_LEAN_FRAME;
 
-typedef struct SERVO_FRAME
-{
-  float pos[12];
-  float speed[12];
-} SERVO_FRAME;
+// typedef struct SERVO_FRAME
+// {
+//   float pos[12];
+//   float speed[12];
+// } SERVO_FRAME;
 
-typedef struct PI_COMMAND
-{
-  bool new_command;
-  int command;
+// typedef struct PI_COMMAND
+// {
+//   bool new_command;
+//   int command;
 
-  char package[COMMAND_BUFFER_SIZE];
-  int package_len;
+//   char package[COMMAND_BUFFER_SIZE];
+//   int package_len;
 
-  void *parser_struct;
-} PI_COMMAND;
+//   void *parser_struct;
+// } PI_COMMAND;
 
 typedef struct FEET_STREAM_CONTROL
 {
@@ -112,16 +111,16 @@ SERVO_FRAME servo_frame;
 CONTROL_STATES control_state = IDLE;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER_CONTROL;
 OFFSET_LEAN_FRAME offset_lean_frame = {{0}, {0}};
-PI_COMMAND pi_command = {false, 0, {0}, 0, NULL};
+PI_COMMAND pi_command = {false, 0, {0}, 0};
 FEET_STREAM_CONTROL feet_stream_control = {0.01, 0, {Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0)}};
 
 // helper, TODO remove
 const std::array<std::string, 4> leg_order = {"FL", "FR", "BL", "BR"};
 
 bool new_command = false;
-bool update_motors = false;
 bool stream_control = false;
 
+SerialHandler serialHandler = SerialHandler();
 Spot miniSpot = Spot();
 
 SpotModel model = SpotModel();
@@ -214,98 +213,18 @@ void send_message(const char *msg)
   return dt_movement;
 }*/
 
-// void set_stance_wspeed(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCyclePoints],double wrist_list[4][nCyclePoints],bool &received,char (& incoming_msg)[MAX_BUFFER_LEN]){
-void set_stance_wspeed(Spot miniSpot, const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
-                       const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed)
-{
 
-  float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
-
-  // set_stance(l_shoulder_stance, l_elbow_stance, l_wrist_stance, r_shoulder_stance, r_elbow_stance, r_wrist_stance);
-
-  miniSpot.Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  miniSpot.Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
-  miniSpot.Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
-  miniSpot.Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  miniSpot.Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
-  miniSpot.Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
-  miniSpot.Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  miniSpot.Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
-  miniSpot.Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
-  miniSpot.Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  miniSpot.Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
-  miniSpot.Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
-
-  // miniSpot->Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  // miniSpot->Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
-  // miniSpot->Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
-  // miniSpot->Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  // miniSpot->Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
-  // miniSpot->Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
-  // miniSpot->Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  // miniSpot->Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
-  // miniSpot->Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
-  // miniSpot->Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  // miniSpot->Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
-  // miniSpot->Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
-
-  // miniSpot.Update_Spot(0);
-  miniSpot.Update_Spot(0);
-
-  // Loop until goal reached - check BR Wrist (last one)
-  // while ((!miniSpot.all_goals_reached()) && DEBUG_set_stance_wspeed)
-  // {
-  //   miniSpot.Servo_List[FL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-  //   miniSpot.Servo_List[FL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-  //   miniSpot.Servo_List[FL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
-
-  //   Serial.print("ESP/FL/Shoulder:");
-  //   Serial.println(positionShoulder);
-  //   Serial.print("ESP/FL/Elbow:");
-  //   Serial.println(positionElbow);
-  //   Serial.print("ESP/FL/Wrist:");
-  //   Serial.println(positionWrist);
-  // }
-}
-
-void straight_calibration_stance(Spot miniSpot)
-{
-  // set_stance(0,0,0,0,0,0);
-  double speed = 500.0;
-  set_stance_wspeed(miniSpot,0.0, 0.0, 0.0, 0.0, 0.0, 0.0, speed);
-}
-
-void prone_calibration_stance(Spot miniSpot)
-{
-  double Left_shoulder_stance = 0.0;
-  double Left_elbow_stance = -90.0;
-  double Left_wrist_stance = 120.0;
-  double Right_shoulder_stance = 0.0;
-  double Right_elbow_stance = 90.0;
-  double Right_wrist_stance = -120.0;
-  double speed = 500.0;
-  // set_stance(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance);
-  set_stance_wspeed(miniSpot, Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance, speed);
-}
 
 void setup()
 {
   // DEBUG_BEGIN();
   Serial.begin(115200);
-  delay(5000);
   Serial.println("ESP/LOG:Starting setup!");
+
   InitRGB();
-
-  // miniSpot = new Spot();
-
   RGBcolor(0, 64, 255);
-
-  //servoInit();
-
   pinMode(LED_PIN, OUTPUT);
-
   RGBoff(); // TODO probably will be removed
-
   delay(100);
 
   // Complete_Spot.Initialize(Servos,12);
@@ -316,7 +235,7 @@ void setup()
   servoInit();
 
 
-  prone_calibration_stance(miniSpot);
+  miniSpot.prone_calibration_stance();
   Serial.println("ESP/LOG:Completed setup!");
   ini = false;
 }
@@ -331,56 +250,27 @@ void loop()
   // Serial.print("ESP/LOOP/CYCLE:");
   // Serial.println(cycle);
 
-  if (pos_feedback_toggle)
-  {
-    if (cycle == 0)
-    {
-      miniSpot.Servo_List[FL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot.Servo_List[FL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot.Servo_List[FL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
-      Serial.print("ESP/FB/FL:");
-    }
-    else if (cycle == 1)
-    {
-      miniSpot.Servo_List[FR_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot.Servo_List[FR_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot.Servo_List[FR_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
-      Serial.print("ESP/FB/FR:");
-    }
-    else if (cycle == 2)
-    {
-      miniSpot.Servo_List[RL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot.Servo_List[RL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot.Servo_List[RL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
-      Serial.print("ESP/FB/RL:");
-    }
-    else if (cycle == 3)
-    {
-      miniSpot.Servo_List[RR_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot.Servo_List[RR_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot.Servo_List[RR_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
-      Serial.print("ESP/FB/RR:");
-    }
-
-    Serial.print("Shoulder:");
-    Serial.print(positionShoulder);
-    Serial.print(",Elbow:");
-    Serial.print(positionElbow);
-    Serial.print(",Wrist:");
-    Serial.println(positionWrist);
-  }
-
   if (pi_command.new_command)
   {
+    Serial.print("pi_command.new_command:");
+    Serial.print(pi_command.new_command);
+    Serial.print(" pi_command.command:");
+    Serial.println(pi_command.command);
+
+    for(int i=0; i<COMMAND_BUFFER_SIZE; i++){
+      Serial.print(pi_command.package[i]);
+    }
+    Serial.println();
+
     pi_command.new_command = false;
 
     switch (pi_command.command)
     {
     case SET_STANCE_STRAIGHT:
-      straight_calibration_stance(miniSpot);
+      miniSpot.straight_calibration_stance();
       break;
     case SET_STANCE_PRONE:
-      prone_calibration_stance(miniSpot);
+      miniSpot.prone_calibration_stance();
       break;
 
     case SET_SERVO_FRAME:
@@ -436,16 +326,16 @@ void loop()
       {
         for (double angle_rad : leg)
         {
-          if (update_motors)
-            miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
+          
+          miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
           iterator += 1;
           Serial.print(angle_rad * 180 / M_PI, 3); // 3 decimal places
           Serial.print(" ");
         }
         Serial.println();
       }
-      if (update_motors)
-        miniSpot.Update_Spot(0);
+      
+      miniSpot.Update_Spot(0);
       break;
 
     case TOGGLE_LOG:
@@ -454,15 +344,6 @@ void loop()
         Serial.println("ESP/LOG:Log:true");
       }
       log_toggle = !log_toggle;
-      break;
-
-    case SET_FEEDBACK:
-      pos_feedback_toggle = !pos_feedback_toggle;
-      if (log_toggle)
-      {
-        Serial.print("ESP/POS_FB:Feedback:");
-        Serial.println(pos_feedback_toggle);
-      }
       break;
 
     default:
@@ -482,10 +363,7 @@ void loop()
       {
         miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
         iterator += 1;
-        Serial.print(angle_rad * 180 / M_PI, 3); // 3 decimal places
-        Serial.print(" ");
       }
-      Serial.println();
     }
 
     miniSpot.Update_Spot(0);
@@ -494,7 +372,8 @@ void loop()
 
 void serialEvent()
 {
-  while (Serial.available())
+  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, pi_command, offset_lean_frame, servo_frame);
+  while (false)//(Serial.available())
   {
     char c = Serial.read();
     if (c == '\n' && !stream_control)
@@ -514,12 +393,6 @@ void serialEvent()
         else if (inputBuffer[0] == '/' && inputBuffer[1] == 'k')
         {
           ESP.restart();
-        }
-        else if (inputBuffer[0] == 'm')
-        {
-          update_motors = !update_motors;
-          String _msg = "Motors: " + String(update_motors);
-          send_message(_msg.c_str());
         }
         else
         {

@@ -125,5 +125,46 @@ bool Spot::all_goals_reached()
     return true;
 }
 
+void Spot::set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
+                       const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed)
+    {
+        float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
+
+        Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+        Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
+        Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
+        Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+        Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
+        Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
+        Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+        Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
+        Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
+        Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+        Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
+        Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
+
+        Update_Spot(0);
+    }
+
+void Spot::straight_calibration_stance()
+{
+  // set_stance(0,0,0,0,0,0);
+  double speed = 500.0;
+  set_stance_wspeed(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, speed);
+}
+
+void Spot::prone_calibration_stance()
+{
+  double Left_shoulder_stance = 0.0;
+  double Left_elbow_stance = -90.0;
+  double Left_wrist_stance = 120.0;
+  double Right_shoulder_stance = 0.0;
+  double Right_elbow_stance = 90.0;
+  double Right_wrist_stance = -120.0;
+  double speed = 500.0;
+  // set_stance(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance);
+  set_stance_wspeed(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance, speed);
+}
+
 // double //TODO add speed control
 //TODO add inverse kinematics 

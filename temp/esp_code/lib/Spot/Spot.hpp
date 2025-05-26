@@ -28,21 +28,13 @@ public:
     void getPositionString(char(& PosString)[256],long time);
     bool all_goals_reached();
 
+    void set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
+                       const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed);
+    void straight_calibration_stance();
+    void prone_calibration_stance();
+
+
     SpotServo Servo_List[N_SERVOS];
-    // SpotServo Servo_List[N_SERVOS] = {
-    //     SpotServo(1, 0, 0, 0, FL, Shoulder),
-    //     SpotServo(2, 0, 0, 0, FL, Elbow),
-    //     SpotServo(3, 0, 0, 0, FL, Wrist),
-    //     SpotServo(4, 0, 0, 0, FR, Shoulder),
-    //     SpotServo(5, 0, 0, 0, FR, Elbow),
-    //     SpotServo(6, 0, 0, 0, FR, Wrist),
-    //     SpotServo(7, 0, 0, 0, RL, Shoulder),
-    //     SpotServo(8, 0, 0, 0, RL, Elbow),
-    //     SpotServo(9, 0, 0, 0, RL, Wrist),
-    //     SpotServo(10, 0, 0, 0, RR, Shoulder),
-    //     SpotServo(11, 0, 0, 0, RR, Elbow),
-    //     SpotServo(12, 0, 0, 0, RR, Wrist)
-    // };
     
 private:
     u8 ID[N_SERVOS];

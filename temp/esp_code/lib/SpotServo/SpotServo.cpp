@@ -69,7 +69,7 @@ SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const d
 void SpotServo::Init(){
 	int pos = 2047 + ((stand_angle + offset))/ 0.087912;
 	st.WritePosEx(servo_ID, pos, speed, acc); // 2047 is the center position of the servo
-	last_actuated = millis();
+	last_actuated = millis();	
 }
 
 // Spot Full Constructor

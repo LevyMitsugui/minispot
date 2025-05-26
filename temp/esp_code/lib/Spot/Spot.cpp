@@ -7,12 +7,32 @@ using namespace std;
 
 
 Spot::Spot(){
+    Init_Servos();
     for (int i = 0; i < N_SERVOS; i++){
         ID[i] = Servo_List[i].Get_servo_ID();
     }
 }
 
+void Spot::Init(){
+    for (int i = 0; i < N_SERVOS; i++){
+        Servo_List[i].Init();
+    }
+}
 
+void Spot::Init_Servos(){
+    Servo_List[0] = SpotServo(1, 0, 0, 0, FL, Shoulder);
+    Servo_List[1] = SpotServo(2, 0, 0, 0, FL, Elbow);
+    Servo_List[2] = SpotServo(3, 0, 0, 0, FL, Wrist);
+    Servo_List[3] = SpotServo(4, 0, 0, 0, FR, Shoulder);
+    Servo_List[4] = SpotServo(5, 0, 0, 0, FR, Elbow);
+    Servo_List[5] = SpotServo(6, 0, 0, 0, FR, Wrist);
+    Servo_List[6] = SpotServo(7, 0, 0, 0, RL, Shoulder);
+    Servo_List[7] = SpotServo(8, 0, 0, 0, RL, Elbow);
+    Servo_List[8] = SpotServo(9, 0, 0, 0, RL, Wrist);
+    Servo_List[9] = SpotServo(10, 0, 0, 0, RR, Shoulder);
+    Servo_List[10] = SpotServo(11, 0, 0, 0, RR, Elbow);
+    Servo_List[11] = SpotServo(12, 0, 0, 0, RR, Wrist);
+}
 // void Spot::Initialize(SpotServo *Servo_List_[], int nServos_)
 // {
 //     nServos = nServos_;

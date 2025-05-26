@@ -17,6 +17,7 @@ class SpotServo
 
 public:
     // using default constructor
+    SpotServo();
 
     /// \brief Initialize parameters
     /// \param servo_ID: servo id
@@ -26,6 +27,8 @@ public:
     /// \param joint_type_: Shoulder, Elbow or Wrist (see enum)
     SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_);
 
+    void Init();
+    
     /// \brief Initialize parameters
     /// \param servo_ID: servo id
     /// \param home_angle_: default joint angle

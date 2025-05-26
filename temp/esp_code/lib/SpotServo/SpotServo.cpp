@@ -6,6 +6,9 @@
 using namespace std;
 
 // Default Constructor
+SpotServo::SpotServo():
+	servo_ID(0), home_angle(0), offset(0), leg_type(FL), joint_type(Shoulder) {}
+
 SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_) {
 	if (joint_type_ == Shoulder)
 	{
@@ -58,6 +61,12 @@ SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const d
 	goal_pose = stand_angle + offset;
 	update_pose = stand_angle + offset;
 
+	// int pos = 2047 + ((stand_angle + offset))/ 0.087912;
+	// st.WritePosEx(servo_ID, pos, speed, acc); // 2047 is the center position of the servo
+	// last_actuated = millis();
+}
+
+void SpotServo::Init(){
 	int pos = 2047 + ((stand_angle + offset))/ 0.087912;
 	st.WritePosEx(servo_ID, pos, speed, acc); // 2047 is the center position of the servo
 	last_actuated = millis();

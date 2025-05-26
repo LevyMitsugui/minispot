@@ -122,7 +122,7 @@ bool new_command = false;
 bool update_motors = false;
 bool stream_control = false;
 
-Spot *miniSpot;
+Spot miniSpot = Spot();
 
 SpotModel model = SpotModel();
 int iterator = 0;
@@ -215,7 +215,7 @@ void send_message(const char *msg)
 }*/
 
 // void set_stance_wspeed(double shoulder_list[4][nCyclePoints],double elbow_list[4][nCyclePoints],double wrist_list[4][nCyclePoints],bool &received,char (& incoming_msg)[MAX_BUFFER_LEN]){
-void set_stance_wspeed(Spot *miniSpot, const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
+void set_stance_wspeed(Spot miniSpot, const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
                        const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed)
 {
 
@@ -223,34 +223,34 @@ void set_stance_wspeed(Spot *miniSpot, const double &l_shoulder_stance, const do
 
   // set_stance(l_shoulder_stance, l_elbow_stance, l_wrist_stance, r_shoulder_stance, r_elbow_stance, r_wrist_stance);
 
-  // miniSpot.Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  // miniSpot.Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
-  // miniSpot.Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
-  // miniSpot.Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  // miniSpot.Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
-  // miniSpot.Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
-  // miniSpot.Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  // miniSpot.Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
-  // miniSpot.Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
-  // miniSpot.Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  // miniSpot.Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
-  // miniSpot.Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
+  miniSpot.Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+  miniSpot.Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
+  miniSpot.Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
+  miniSpot.Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+  miniSpot.Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
+  miniSpot.Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
+  miniSpot.Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+  miniSpot.Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
+  miniSpot.Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
+  miniSpot.Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+  miniSpot.Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
+  miniSpot.Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
 
-  miniSpot->Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  miniSpot->Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
-  miniSpot->Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
-  miniSpot->Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  miniSpot->Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
-  miniSpot->Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
-  miniSpot->Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
-  miniSpot->Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
-  miniSpot->Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
-  miniSpot->Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
-  miniSpot->Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
-  miniSpot->Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
+  // miniSpot->Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+  // miniSpot->Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
+  // miniSpot->Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
+  // miniSpot->Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+  // miniSpot->Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
+  // miniSpot->Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
+  // miniSpot->Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+  // miniSpot->Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
+  // miniSpot->Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
+  // miniSpot->Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+  // miniSpot->Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
+  // miniSpot->Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
 
   // miniSpot.Update_Spot(0);
-  miniSpot->Update_Spot(0);
+  miniSpot.Update_Spot(0);
 
   // Loop until goal reached - check BR Wrist (last one)
   // while ((!miniSpot.all_goals_reached()) && DEBUG_set_stance_wspeed)
@@ -268,14 +268,14 @@ void set_stance_wspeed(Spot *miniSpot, const double &l_shoulder_stance, const do
   // }
 }
 
-void straight_calibration_stance(Spot * miniSpot)
+void straight_calibration_stance(Spot miniSpot)
 {
   // set_stance(0,0,0,0,0,0);
   double speed = 500.0;
   set_stance_wspeed(miniSpot,0.0, 0.0, 0.0, 0.0, 0.0, 0.0, speed);
 }
 
-void prone_calibration_stance(Spot * miniSpot)
+void prone_calibration_stance(Spot miniSpot)
 {
   double Left_shoulder_stance = 0.0;
   double Left_elbow_stance = -90.0;
@@ -291,22 +291,22 @@ void prone_calibration_stance(Spot * miniSpot)
 void setup()
 {
   // DEBUG_BEGIN();
-  // Serial.begin(115200);
+  Serial.begin(115200);
   delay(5000);
   Serial.println("ESP/LOG:Starting setup!");
   InitRGB();
 
-  miniSpot = new Spot();
+  // miniSpot = new Spot();
 
   RGBcolor(0, 64, 255);
 
-  servoInit();
+  //servoInit();
 
   pinMode(LED_PIN, OUTPUT);
 
   RGBoff(); // TODO probably will be removed
 
-  delay(1000);
+  delay(5000);
 
   // FL_Shoulder.Initialize(1, 0, 0, 0, FL, Shoulder);  // 0 | FLS start: 0
   // FL_Elbow.Initialize(2, 0, 0, 0, FL, Elbow);        // 0 | FLE start: 0
@@ -330,7 +330,12 @@ void setup()
 
   IK.Initialize(0.04, 0.07, 0.11);
 
+  miniSpot.Init_Servos();
+  servoInit();
+
+
   prone_calibration_stance(miniSpot);
+  Serial.println("ESP/LOG:Completed setup!");
   ini = false;
 }
 
@@ -348,30 +353,30 @@ void loop()
   {
     if (cycle == 0)
     {
-      miniSpot->Servo_List[FL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot->Servo_List[FL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot->Servo_List[FL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
+      miniSpot.Servo_List[FL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
+      miniSpot.Servo_List[FL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
+      miniSpot.Servo_List[FL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
       Serial.print("ESP/FB/FL:");
     }
     else if (cycle == 1)
     {
-      miniSpot->Servo_List[FR_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot->Servo_List[FR_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot->Servo_List[FR_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
+      miniSpot.Servo_List[FR_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
+      miniSpot.Servo_List[FR_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
+      miniSpot.Servo_List[FR_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
       Serial.print("ESP/FB/FR:");
     }
     else if (cycle == 2)
     {
-      miniSpot->Servo_List[RL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot->Servo_List[RL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot->Servo_List[RL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
+      miniSpot.Servo_List[RL_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
+      miniSpot.Servo_List[RL_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
+      miniSpot.Servo_List[RL_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
       Serial.print("ESP/FB/RL:");
     }
     else if (cycle == 3)
     {
-      miniSpot->Servo_List[RR_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-      miniSpot->Servo_List[RR_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
-      miniSpot->Servo_List[RR_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
+      miniSpot.Servo_List[RR_SHOULDER].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
+      miniSpot.Servo_List[RR_ELBOW].Get_Feedback(speedElbow, loadElbow, positionElbow);
+      miniSpot.Servo_List[RR_WRIST].Get_Feedback(speedWrist, loadWrist, positionWrist);
       Serial.print("ESP/FB/RR:");
     }
 
@@ -410,9 +415,9 @@ void loop()
           Serial.print(" Speed: ");
           Serial.println(servo_frame.speed[i]);
         }
-        miniSpot->Servo_List[i].SetGoal(servo_frame.pos[i], servo_frame.speed[i]);
+        miniSpot.Servo_List[i].SetGoal(servo_frame.pos[i], servo_frame.speed[i]);
       }
-      miniSpot->Update_Spot(0);
+      miniSpot.Update_Spot(0);
       break;
 
     case SET_OFFSET_LEAN:
@@ -450,7 +455,7 @@ void loop()
         for (double angle_rad : leg)
         {
           if (update_motors)
-            miniSpot->Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
+            miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
           iterator += 1;
           Serial.print(angle_rad * 180 / M_PI, 3); // 3 decimal places
           Serial.print(" ");
@@ -458,7 +463,7 @@ void loop()
         Serial.println();
       }
       if (update_motors)
-        miniSpot->Update_Spot(0);
+        miniSpot.Update_Spot(0);
       break;
 
     case TOGGLE_LOG:
@@ -493,7 +498,7 @@ void loop()
     {
       for (double angle_rad : leg)
       {
-        miniSpot->Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
+        miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
         iterator += 1;
         Serial.print(angle_rad * 180 / M_PI, 3); // 3 decimal places
         Serial.print(" ");
@@ -501,7 +506,7 @@ void loop()
       Serial.println();
     }
 
-    miniSpot->Update_Spot(0);
+    miniSpot.Update_Spot(0);
   }
 }
 

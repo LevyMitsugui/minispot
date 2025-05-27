@@ -29,11 +29,13 @@ class SerialHandler
 {
 public:
     //virtual void handleSerialEvent() = 0; //what is this?
-    //using Callback = void (*)(const char *);
+    using Callback = bool (*)(char);
     bool callback_enabled = false;
+    char enCallbackChar;
 
     SerialHandler();
-    void HandleSerialEvent(char * inputBuffer, int & bufferPos, PI_COMMAND & pi_command, OFFSET_LEAN_FRAME & offset_lean_frame, SERVO_FRAME & servo_frame);
+    SerialHandler(bool callback_enabled, char enCallbackChar);
+    void HandleSerialEvent(char * inputBuffer, int & bufferPos, Callback cb, PI_COMMAND & pi_command, OFFSET_LEAN_FRAME & offset_lean_frame, SERVO_FRAME & servo_frame);
 
 private:
     void processPiCommand(const char *cmd, PI_COMMAND & pi_command);

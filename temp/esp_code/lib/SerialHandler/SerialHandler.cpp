@@ -1,9 +1,12 @@
 #include "SerialHandler.hpp"
 
 SerialHandler::SerialHandler():
-    callback_enabled(false) {}
+    callback_enabled(false),
+    enCallbackChar('>'){}
 
-void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, PI_COMMAND & pi_command, OFFSET_LEAN_FRAME & offset_lean_frame, SERVO_FRAME & servo_frame)
+SerialHandler::SerialHandler(bool callback_enabled, char enCallbackChar):callback_enabled(false), enCallbackChar(enCallbackChar){}
+
+void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, Callback cb, PI_COMMAND & pi_command, OFFSET_LEAN_FRAME & offset_lean_frame, SERVO_FRAME & servo_frame)
 {
     if (inputBuffer == NULL  )
     {
@@ -28,9 +31,9 @@ void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, PI_CO
                 {
                     processPiCommand(inputBuffer + 1, pi_command);
                 }
-                else if (inputBuffer[0] == '>')
+                else if (inputBuffer[0] == enCallbackChar)
                 { // handle stream mode
-                    Serial.println("ESP/STREAM:Stream Control Enabled");
+                    Serial.println("ESP/STREAM:Callback Enabled");
                     callback_enabled = true;
                 }
                 else if (inputBuffer[0] == '/' && inputBuffer[1] == 'k')
@@ -51,10 +54,14 @@ void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, PI_CO
         {
             inputBuffer[bufferPos++] = c;
         }
-        // else if (stream_control)
-        // {
-        //     process_stream_control(c); //TODO run callback
-        // }
+        else if (callback_enabled)
+        {
+            if (!cb(c))
+            {
+                Serial.println("ESP/STREAM:Callback Disabled");
+                callback_enabled = false;
+            } 
+        }
         else
         {
             Serial.println("[ERROR] Command too long");
@@ -97,6 +104,7 @@ int SerialHandler::parseServoFrame(char *buf, SERVO_FRAME & servo_frame){
   }
   return 0;
 }
+
 int SerialHandler::parseOffsetLean(char * buf, OFFSET_LEAN_FRAME & offset_lean_frame){
   char *token = strtok(buf, ",");
   for (int i = 0; i < 3; i++)

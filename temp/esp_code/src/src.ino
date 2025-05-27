@@ -49,7 +49,7 @@ int bufferPos = 0;
 void processPiCommand(const char *cmd);
 int parseServoFrame(const char *buf);
 int parseOffsetLean(const char *buf);
-void process_stream_control(char c);
+bool process_stream_control(char c);
 
 enum CONTROL_STATES
 {
@@ -120,7 +120,7 @@ const std::array<std::string, 4> leg_order = {"FL", "FR", "BL", "BR"};
 bool new_command = false;
 bool stream_control = false;
 
-SerialHandler serialHandler = SerialHandler();
+SerialHandler serialHandler = SerialHandler(false, 'x');
 Spot miniSpot = Spot();
 
 SpotModel model = SpotModel();
@@ -251,17 +251,7 @@ void loop()
   // Serial.println(cycle);
 
   if (pi_command.new_command)
-  {
-    Serial.print("pi_command.new_command:");
-    Serial.print(pi_command.new_command);
-    Serial.print(" pi_command.command:");
-    Serial.println(pi_command.command);
-
-    for(int i=0; i<COMMAND_BUFFER_SIZE; i++){
-      Serial.print(pi_command.package[i]);
-    }
-    Serial.println();
-
+  {    
     pi_command.new_command = false;
 
     switch (pi_command.command)
@@ -349,8 +339,11 @@ void loop()
     default:
       break;
     }
-    // Serial.println("out of switch");
   }
+
+  delay(10);
+  Serial.print("stream control status: ");
+  Serial.println(stream_control);
 
   if (stream_control)
   {
@@ -361,7 +354,7 @@ void loop()
     {
       for (double angle_rad : leg)
       {
-        miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
+        miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, 200);
         iterator += 1;
       }
     }
@@ -372,7 +365,7 @@ void loop()
 
 void serialEvent()
 {
-  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, pi_command, offset_lean_frame, servo_frame);
+  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, process_stream_control, pi_command, offset_lean_frame, servo_frame);
   while (false)//(Serial.available())
   {
     char c = Serial.read();
@@ -483,19 +476,32 @@ int parseOffsetLean(char *buf)
   return 0;
 }
 
-void process_stream_control(char c)
+bool process_stream_control(char c)
 {
+  if (!stream_control)
+  {
+    stream_control = true;
+  }
   switch (c)
   {
   case 'q':
     stream_control = false;
     Serial.println("ESP/STREAM:Stream Control Disabled");
+    return false;
     break;
   case 'm':
-    feet_stream_control.step = feet_stream_control.step + 0.01;
+    if (feet_stream_control.step > 0.01) {
+      feet_stream_control.step = feet_stream_control.step + 0.01;
+    } else if (feet_stream_control.step <= 0.01) {
+      feet_stream_control.step = feet_stream_control.step + 0.001;
+    }
     break;
   case 'n':
-    feet_stream_control.step = feet_stream_control.step - 0.01;
+    if (feet_stream_control.step > 0.01) {
+      feet_stream_control.step = feet_stream_control.step - 0.01;
+    } else if (feet_stream_control.step <= 0.01) {
+      feet_stream_control.step = feet_stream_control.step - 0.001;
+    }
     break;
   case '1':
     feet_stream_control.selected = 0;
@@ -530,4 +536,5 @@ void process_stream_control(char c)
   default:
     break;
   }
+  return true;
 }

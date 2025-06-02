@@ -8,6 +8,11 @@
 #include "LieAlgebra.hpp"
 #include "Kinematics.hpp"
 
+#define NUM_LEGS 4
+#define NUM_JOINTS 3
+
+enum legs {FL_m, FR_m, RL_m, RR_m};
+
 class SpotModel {
 public:
     SpotModel(double shoulder_length = 0.045,
@@ -19,28 +24,27 @@ public:
               double foot_y = 0.17,
               double height = 0.145);
 
-    std::map<std::string, Eigen::Vector3d> HipToFoot(const Eigen::Vector3d& orn,
-                                                     const Eigen::Vector3d& pos,
-                                                     const std::map<std::string, Eigen::Matrix4d>& T_bf);
+    void HipToFoot(
+        Eigen::Vector3d HTF_vectors[NUM_LEGS], 
+        const Eigen::Vector3d& orn, 
+        const Eigen::Vector3d& pos, 
+        const Eigen::Matrix4d WorldToFoot[NUM_LEGS]);
 
-    std::array<std::array<double, 3>, 4> IK(const Eigen::Vector3d& orn,
-                                           const Eigen::Vector3d& pos,
-                                           const std::map<std::string, Eigen::Matrix4d>& T_bf);
-    
-    // std::array<std::array<double, 3>, 4> SpotModel::IKWithFootOverrides(
-    //                                         const Eigen::Vector3d& orn,
-    //                                         const Eigen::Vector3d& pos,
-    //                                         const std::map<std::string, Eigen::Vector3d>& foot_shift);
-    std::array<std::array<double, 3>, 4> IKWithFootOverrides(
-                                        const Eigen::Vector3d& orn,
-                                        const Eigen::Vector3d& pos,
-                                        const std::array<Eigen::Vector3d, 4>& foot_shift,
-                                        const std::array<std::string, 4> leg_order);
+    void IK(
+        double joint_angles[NUM_LEGS][NUM_JOINTS], 
+        const Eigen::Vector3d& orn, 
+        const Eigen::Vector3d& pos, 
+        const Eigen::Matrix4d WorldToFoot[NUM_LEGS]);
+   
+    void IKFootOverrides(
+        double jointAngles[NUM_LEGS][NUM_JOINTS], 
+        const Eigen::Vector3d& bodyOrientationRPY, 
+        const Eigen::Vector3d& bodyPosition, 
+        const Eigen::Vector3d footShifts[NUM_LEGS]);
 
-    
-    std::map<std::string, Eigen::Matrix4d> WorldToHip;
-    std::map<std::string, Eigen::Matrix4d> WorldToFoot;
-    std::map<std::string, Kinematics> Legs;
+    Eigen::Matrix4d WorldToHip[NUM_LEGS];
+    Eigen::Matrix4d WorldToFoot[NUM_LEGS];
+    Kinematics Legs[NUM_LEGS];
     
 private:
     double shoulder_length, elbow_length, wrist_length;

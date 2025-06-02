@@ -81,7 +81,7 @@ typedef struct FEET_STREAM_CONTROL
 {
   float step;
   int selected;
-  std::array<Eigen::Vector3d, 4> feet_shifts;
+  Eigen::Vector3d feet_shifts[NUM_LEGS];
 } FEET_STREAM_CONTROL;
 
 SERVO_FRAME servo_frame;
@@ -104,7 +104,12 @@ SpotModel model = SpotModel();
 int iterator = 0;
 Eigen::Vector3d orn(0, 0, 0); // roll, pitch, yaw
 Eigen::Vector3d pos(0, 0, 0); // body position
-auto joint_angles = model.IK(orn, pos, model.WorldToFoot);
+
+//auto joint_angles = model.IK(orn, pos, model.WorldToFoot); //TODO finish this
+
+double joint_angles[4][3];
+// model.IK(joint_angles, orn, pos, model.WorldToFoot);
+
 #define SPEED 125
 double speeds[3] = {0.0, 0.0, 0.0};
 double dt_movement = 0.0;
@@ -147,36 +152,6 @@ void send_message(const char *msg)
   Serial.write(msg);
 }
 
-/*double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const=400){  //TODO ver se eu consigo usar isso aqui
-  //Calcula as velocidades para cada joint para que acabem todas ao mesmo tempo, atingindo um movimento mais fluido
-  double shoulder_dist = abs(angles[0] - (*Shoulders[leg]).GetPoseEstimate());
-  double elbow_dist = abs(angles[1] - (*Elbows[leg]).GetPoseEstimate());
-  double wrist_dist = abs(angles[2] - (*Wrists[leg]).GetPoseEstimate());
-
-  double scaling_factor = util.max(shoulder_dist, elbow_dist, wrist_dist);
-
-  double dt_movement = scaling_factor/(speed_const * 0.087912);
-
-  shoulder_dist /= scaling_factor;
-  elbow_dist /= scaling_factor;
-  wrist_dist /= scaling_factor;
-
-  double s_speed = 0.0;
-  double e_speed = 0.0;
-  double w_speed = 0.0;
-
-  s_speed = speed_const / shoulder_dist;
-  e_speed = speed_const / elbow_dist;
-  w_speed = speed_const / wrist_dist;
-
-  speed[0] = s_speed;
-  speed[1] = e_speed;
-  speed[2] = w_speed;
-
-  return dt_movement;
-}*/
-
-
 void confirm_servos(){ //TODO continue here, have to run this, IDS seems wrong, but we can control the servos normally
   for(int i = 0; i < 12; i++){
     Serial.print(" Leg: ");
@@ -209,12 +184,14 @@ void setup()
   RGBoff(); // TODO probably will be removed
   delay(100);
 
-  pingAll(true); //TODO what is this?
+  pingAll(true); //TODO move the routines to init servos to Spot.cpp
 
   // Complete_Spot.Initialize(Servos,12);
 
   delay(5000);
   IK.Initialize(0.04, 0.07, 0.11);
+  model.IK(joint_angles, orn, pos, model.WorldToFoot);
+  
 
   //miniSpot.Init_Servos();//TODO About the crash: try to see if where the class that deals with waveshare bus  is instantiated
   //servoInit();
@@ -275,18 +252,18 @@ void loop()
       pos.y() = offset_lean_frame.xyz[1];
       pos.z() = offset_lean_frame.xyz[2];
 
-      joint_angles = model.IK(orn, pos, model.WorldToFoot);
+      // joint_angles = model.IK(orn, pos, model.WorldToFoot); // TODO fix this
 
-      // Serial.println("Joint Angles in Degrees:");
-      iterator = 0;
-      for (const auto &leg : joint_angles){
-        for (double angle_rad : leg){
-          miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
-          iterator += 1;
-        }
-      }
+      // // Serial.println("Joint Angles in Degrees:");
+      // iterator = 0;
+      // for (const auto &leg : joint_angles){
+      //   for (double angle_rad : leg){
+      //     miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
+      //     iterator += 1;
+      //   }
+      // }
       
-      miniSpot.Update_Spot(0);
+      // miniSpot.Update_Spot(0);
       break;
 
     case TOGGLE_LOG:
@@ -303,28 +280,33 @@ void loop()
 
   if (stream_control){
     stream_control = false;
-    joint_angles = model.IKWithFootOverrides(orn, pos, feet_stream_control.feet_shifts, leg_order);
+    //joint_angles = model.IKWithFootOverrides(orn, pos, feet_stream_control.feet_shifts, leg_order);
+    model.IKFootOverrides(joint_angles, orn, pos, feet_stream_control.feet_shifts);
 
     iterator = 0;
-    for (const auto &leg : joint_angles)
-    {
-      // Serial.print("iterator: ");
-      // Serial.print(iterator);
-      // Serial.print("   iterator/3: ");
-      // Serial.println(iterator/3);
-      //dt_movement = miniSpot.Leg_Joint_Speeds(speeds, joint_angles[iterator/3].data(), iterator%3, 200);
-      for (double angle_rad : leg)
-      {
-        // Serial.print("iterator%3: ");
-        // Serial.println(iterator%3);
-        miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, 200); //speeds[iterator%3]);
+
+    for(int i = 0; i < NUM_LEGS; i++){
+      dt_movement = miniSpot.Leg_Joint_Speeds(speeds, joint_angles[i], iterator/3, 200);
+      for(int j = 0; j < NUM_JOINTS; j++){
+        DEBUG_I("JOINT: %d  speed: %.2f  Angle: %.2f", iterator % 3, speeds[iterator % 3], joint_angles[i][j]);
+        miniSpot.Servo_List[iterator].SetGoal(joint_angles[i][j] * 180 / M_PI, speeds[iterator%3]);
         iterator += 1;
       }
     }
+
+    // for (const auto &leg : joint_angles)
+    // {
+    //   // Serial.print("iterator: ");
+    //   // Serial.print(iterator);
+    //   dt_movement = miniSpot.Leg_Joint_Speeds(speeds, joint_angles[iterator/3].data(), iterator/3, 400);
+    //   for (double angle_rad : leg)
+    //   {
+    //     DEBUG_I("JOINT: %d  speed: %.2f", iterator % 3, speeds[iterator % 3]);
+    //     miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, speeds[iterator%3]);
+    //     iterator += 1;
+    //   }
+    // }
     miniSpot.Update_Spot(0);
-    DEBUG_I("Selected: %d", feet_stream_control.selected);
-    Serial.print("Selected: ");
-    Serial.println(feet_stream_control.selected);
     switch(feet_stream_control.selected){
       case 0:
         miniSpot.Servo_List[0].GetPoseEstimate();

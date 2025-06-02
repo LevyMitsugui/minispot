@@ -86,8 +86,8 @@ void getLoadFeedback(byte servoID) {
 }
 
 void getPositionFeedback(byte servoID){
-  Serial.print("getPositionFeedback, TYPE: ");  
-  Serial.println(ServoType[servoID]);  
+  // Serial.print("getPositionFeedback, TYPE: ");  
+  // Serial.println(ServoType[servoID]);  
   if (ServoType[servoID] == 9) {
         if(st.FeedBack(servoID) != -1){
             posRead[servoID] = st.ReadPos(-1);

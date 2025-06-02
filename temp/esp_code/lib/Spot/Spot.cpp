@@ -5,6 +5,9 @@
 #include <algorithm>
 using namespace std;
 
+#define ENABLE_DEBUG
+#include <MacroDebugger.h>
+
 Spot::Spot()
 {
     Init_Servos();
@@ -12,6 +15,7 @@ Spot::Spot()
     {
         ID[i] = Servo_List[i].Get_servo_ID();
     }
+    model = SpotModel();
 }
 
 void Spot::Init()
@@ -131,8 +135,7 @@ bool Spot::all_goals_reached()
 }
 
 double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const)
-{ // TODO ver se eu consigo usar isso aqui
-    // Calcula as velocidades para cada joint para que acabem todas ao mesmo tempo, atingindo um movimento mais fluido
+{
     Serial.print("LEG: ");
     Serial.println(leg);
     
@@ -151,13 +154,6 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
     double s_estimate = Servo_List[leg * 3].GetPoseEstimate();
     double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimate();
     double w_estimate = Servo_List[leg * 3 + 2].GetPoseEstimate();
-
-    Serial.print("s_estimate: ");
-    Serial.print(s_estimate);
-    Serial.print("  e_estimate: ");
-    Serial.print(e_estimate);
-    Serial.print("  w_estimate: ");
-    Serial.println(w_estimate);
     
     // double shoulder_dist = abs(angles[0] - Servo_List[leg * 3].GetPoseEstimate());
     // double elbow_dist    = abs(angles[1] - Servo_List[leg * 3 + 1].GetPoseEstimate());
@@ -165,8 +161,11 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
 
     
     double shoulder_dist = abs(angles_[0] - s_estimate);
+    // if (shoulder_dist < POS_ERROR_THRESHOLD) shoulder_dist = 0;
     double elbow_dist    = abs(angles_[1] - e_estimate);
+    // if (elbow_dist < POS_ERROR_THRESHOLD) elbow_dist = 0;
     double wrist_dist    = abs(angles_[2] - w_estimate);
+    // if (wrist_dist < POS_ERROR_THRESHOLD) wrist_dist = 0;
 
     Serial.print("shoulder_dist: ");
     Serial.print(shoulder_dist);
@@ -179,30 +178,29 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
 
     double dt_movement = scaling_factor / (speed_const * 0.087912);
 
-    shoulder_dist /= scaling_factor;
-    elbow_dist /= scaling_factor;
-    wrist_dist /= scaling_factor;
+    double shoulder_scaled = shoulder_dist / scaling_factor;
+    double elbow_scaled = elbow_dist / scaling_factor;
+    double wrist_scaled = wrist_dist / scaling_factor;
 
     double s_speed = 0.0;
     double e_speed = 0.0;
     double w_speed = 0.0;
 
-    s_speed = speed_const / shoulder_dist;
-    e_speed = speed_const / elbow_dist;
-    w_speed = speed_const / wrist_dist;
+    s_speed = (shoulder_dist < POS_ERROR_THRESHOLD) ? 0 : speed_const / shoulder_scaled;
+    e_speed = (elbow_dist < POS_ERROR_THRESHOLD)    ? 0 : speed_const / elbow_scaled;
+    w_speed = (wrist_dist < POS_ERROR_THRESHOLD)    ? 0 : speed_const / wrist_scaled;
 
     speed[0] = s_speed;
     speed[1] = e_speed;
     speed[2] = w_speed;
 
-    Serial.print("s_speed: ");
-    Serial.print(s_speed);
-    Serial.print("  e_speed: ");
-    Serial.print(e_speed);
-    Serial.print("  w_speed: ");
-    Serial.println(w_speed);
+    DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", s_speed, e_speed, w_speed);
 
     return dt_movement;
+}
+
+void Spot::move_foot(int leg, double * vector, double time){
+
 }
 
 void Spot::set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,

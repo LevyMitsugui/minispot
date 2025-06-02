@@ -19,110 +19,85 @@ SpotModel::SpotModel(double shoulder_length,
       foot_y(foot_y),
       height(height) {
 
-    Legs["FL"].Initialize(shoulder_length, elbow_length, wrist_length);
-    Legs["FR"].Initialize(shoulder_length, elbow_length, wrist_length);
-    Legs["BL"].Initialize(shoulder_length, elbow_length, wrist_length);
-    Legs["BR"].Initialize(shoulder_length, elbow_length, wrist_length);
+    Legs[FL_m].Initialize(shoulder_length, elbow_length, wrist_length);
+    Legs[FR_m].Initialize(shoulder_length, elbow_length, wrist_length);
+    Legs[RL_m].Initialize(shoulder_length, elbow_length, wrist_length);
+    Legs[RR_m].Initialize(shoulder_length, elbow_length, wrist_length);
 
     Eigen::Matrix3d Rwb = Eigen::Matrix3d::Identity();
 
-    WorldToHip["FL"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( hip_x / 2.0,  hip_y / 2.0, 0));
-    WorldToHip["FR"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( hip_x / 2.0, -hip_y / 2.0, 0));
-    WorldToHip["BL"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-hip_x / 2.0,  hip_y / 2.0, 0));
-    WorldToHip["BR"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-hip_x / 2.0, -hip_y / 2.0, 0));
+    WorldToHip[FL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( hip_x / 2.0,  hip_y / 2.0, 0));
+    WorldToHip[FR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( hip_x / 2.0, -hip_y / 2.0, 0));
+    WorldToHip[RL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-hip_x / 2.0,  hip_y / 2.0, 0));
+    WorldToHip[RR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-hip_x / 2.0, -hip_y / 2.0, 0));
 
-    WorldToFoot["FL"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0,  foot_y / 2.0, -height));
-    WorldToFoot["FR"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0, -foot_y / 2.0, -height));
-    WorldToFoot["BL"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0,  foot_y / 2.0, -height));
-    WorldToFoot["BR"] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, -foot_y / 2.0, -height));
+    WorldToFoot[FL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0,  foot_y / 2.0, -height));
+    WorldToFoot[FR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0, -foot_y / 2.0, -height));
+    WorldToFoot[RL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0,  foot_y / 2.0, -height));
+    WorldToFoot[RR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, -foot_y / 2.0, -height));
 }
 
-std::map<std::string, Eigen::Vector3d> SpotModel::HipToFoot(const Eigen::Vector3d& orn,
-                                                            const Eigen::Vector3d& pos,
-                                                            const std::map<std::string, Eigen::Matrix4d>& T_bf) {
-    std::map<std::string, Eigen::Vector3d> HipToFoot_List;
+void SpotModel::HipToFoot(
+    Eigen::Vector3d hipToFootVectors[NUM_LEGS],
+    const Eigen::Vector3d& bodyOrientationRPY,
+    const Eigen::Vector3d& bodyPosition,
+    const Eigen::Matrix4d baseToFootTransforms[NUM_LEGS])
+{
+    Eigen::Matrix4d T_woRL_mdToBase = LieAlgebra::RpToTrans(
+    LieAlgebra::RPY(bodyOrientationRPY[0], bodyOrientationRPY[1], bodyOrientationRPY[2]).block<3, 3>(0, 0),
+    bodyPosition);
 
-    Eigen::Matrix4d T_wb = LieAlgebra::RpToTrans(LieAlgebra::RPY(orn[0], orn[1], orn[2]).block<3,3>(0,0), pos);
+    for (int i = 0; i < NUM_LEGS; ++i) {
+        Eigen::Vector3d footPosInBase = baseToFootTransforms[i].block<3, 1>(0, 3);
+        Eigen::Matrix4d T_baseToHip = LieAlgebra::TransInv(T_woRL_mdToBase) * WorldToHip[i];
+        Eigen::Vector3d hipPosInBase = T_baseToHip.block<3, 1>(0, 3);
+        
+        Eigen::Vector3d approxHipToFoot = footPosInBase - hipPosInBase;
 
-    for (const auto& [key, T_wh] : WorldToHip) {
-        Eigen::Vector3d p_bf = T_bf.at(key).block<3,1>(0,3);
-        Eigen::Matrix4d T_bh = LieAlgebra::TransInv(T_wb) * T_wh;
-        Eigen::Vector3d p_bh = T_bh.block<3,1>(0,3);
-        Eigen::Vector3d p_hf0 = p_bf - p_bh;
-        Eigen::Matrix4d T_hf = LieAlgebra::TransInv(T_bh) * T_bf.at(key);
-        Eigen::Vector3d p_hf1 = T_hf.block<3,1>(0,3);
-        Eigen::Vector3d p_hf = p_hf1; // Prefer transform-based result
-        HipToFoot_List[key] = p_hf;
+        Eigen::Matrix4d T_hipToFoot = LieAlgebra::TransInv(T_baseToHip) * baseToFootTransforms[i];
+        Eigen::Vector3d footPosInHip = T_hipToFoot.block<3, 1>(0, 3);
+
+        hipToFootVectors[i] = footPosInHip;
     }
-
-    return HipToFoot_List;
 }
 
-std::array<std::array<double, 3>, 4> SpotModel::IK(const Eigen::Vector3d& orn,
-                                                   const Eigen::Vector3d& pos,
-                                                   const std::map<std::string, Eigen::Matrix4d>& T_bf) {
-    std::array<std::array<double, 3>, 4> joint_angles{};
-    std::vector<std::string> order = {"FL", "FR", "BL", "BR"};
-    auto HipToFootVectors = HipToFoot(orn, pos, T_bf);
+void SpotModel::IK(
+    double jointAngles[NUM_LEGS][NUM_JOINTS],
+    const Eigen::Vector3d& bodyOrientationRPY,
+    const Eigen::Vector3d& bodyPosition,
+    const Eigen::Matrix4d woRL_mdToFootTransforms[NUM_LEGS])
+{
+    Eigen::Vector3d hipToFootVectors[NUM_LEGS];
+    HipToFoot(hipToFootVectors, bodyOrientationRPY, bodyPosition, woRL_mdToFootTransforms);
+    
+    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
+        double jointAngleSet[NUM_JOINTS];
+        Eigen::Vector3d hipToFoot = hipToFootVectors[legIdx];
+        LegQuadrant side = (legIdx == FR_m || legIdx == BR) ? Right : Left;
 
-    // for (const auto& [key, vec] : HipToFootVectors) {
-    //     Serial.print(key.c_str());
-    //     Serial.print(": ");
-    //     Serial.print(vec.x(), 3);
-    //     Serial.print(", ");
-    //     Serial.print(vec.y(), 3);
-    //     Serial.print(", ");
-    //     Serial.println(vec.z(), 3);
-    // } 
+        Legs[legIdx].GetJointAngles(hipToFoot[0], hipToFoot[1], hipToFoot[2], side, jointAngleSet);
 
-    for (size_t i = 0; i < order.size(); ++i) {
-        double angles[3];
-        const auto& key = order[i];
-        Eigen::Vector3d p_hf = HipToFootVectors[key];  
-        Legs[key].GetJointAngles(p_hf[0], p_hf[1], p_hf[2], key == "FR" || key == "BR" ? Right : Left, angles);
-        for (int j = 0; j < 3; ++j) {
-            joint_angles[i][j] = angles[j];
+        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx) {
+            jointAngles[legIdx][jointIdx] = jointAngleSet[jointIdx];
         }
     }
-
-    return joint_angles;
 }
 
-// std::array<std::array<double, 3>, 4> SpotModel::IKWithFootOverrides(
-//     const Eigen::Vector3d& orn,
-//     const Eigen::Vector3d& pos,
-//     const std::array<Eigen::Vector3d, 4>& foot_shift) {
+void SpotModel::IKFootOverrides(
+    double jointAngles[NUM_LEGS][NUM_JOINTS], 
+    const Eigen::Vector3d& bodyOrientationRPY, 
+    const Eigen::Vector3d& bodyPosition, 
+    const Eigen::Vector3d footShifts[NUM_LEGS])
+{
+    Eigen::Matrix4d baseToFootTransforms[NUM_LEGS];
 
-//     static const std::array<std::string, 4> order = {"FL", "FR", "BL", "BR"};
-//     std::map<std::string, Eigen::Matrix4d> modifiedTbf = WorldToFoot;
+    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
+        Eigen::Vector3d originalFootPos = WorldToFoot[legIdx].block<3, 1>(0, 3);
+        Eigen::Vector3d shiftedFootPos = originalFootPos + footShifts[legIdx];
 
-//     for (size_t i = 0; i < order.size(); ++i) {
-//         const std::string& key = order[i];
-//         Eigen::Vector3d base_pos = WorldToFoot.at(key).block<3,1>(0,3);
-//         Eigen::Vector3d new_pos = base_pos + foot_shift[i];
-//         modifiedTbf[key] = LieAlgebra::RpToTrans(Eigen::Matrix3d::Identity(), new_pos);
-//     }
-
-//     return IK(orn, pos, modifiedTbf);
-// }
-
-std::array<std::array<double, 3>, 4> SpotModel::IKWithFootOverrides(
-    const Eigen::Vector3d& orn,
-    const Eigen::Vector3d& pos,
-    const std::array<Eigen::Vector3d, 4>& foot_shift,
-    const std::array<std::string, 4> leg_order) {
-
-    // Apply foot shifts to the default foot positions
-    std::map<std::string, Eigen::Matrix4d> modifiedTbf = WorldToFoot;
-    for (size_t i = 0; i < leg_order.size(); ++i) {
-        const std::string& leg = leg_order[i];
-        Eigen::Vector3d base_pos = WorldToFoot.at(leg).block<3,1>(0,3);
-        Eigen::Vector3d shifted_pos = base_pos + foot_shift[i];
-        modifiedTbf[leg] = LieAlgebra::RpToTrans(Eigen::Matrix3d::Identity(), shifted_pos);
+        baseToFootTransforms[legIdx] = LieAlgebra::RpToTrans(
+            Eigen::Matrix3d::Identity(), shiftedFootPos);
     }
 
-    // Compute joint angles with the modified foot transforms
-
-    return IK(orn, pos, modifiedTbf);
+    IK(jointAngles, bodyOrientationRPY, bodyPosition, baseToFootTransforms);
 }
-

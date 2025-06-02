@@ -241,11 +241,11 @@ double PosToDeg(int pos) {
 
 void SpotServo::update_position_using_Feedback()
 {
-	Serial.printf("Servo %d type: %d\n", servo_ID, ServoType[servo_ID]);
+	// Serial.printf("Servo %d type: %d\n", servo_ID, ServoType[servo_ID]);
 	getPositionFeedback(servo_ID);
 	current_pose = PosToDeg(posRead[servo_ID]) - offset;
-	DEBUG_I("Servo Init Type: %s,  Servo ID: %d", ((init_type) ? "true" : "false"), servo_ID);
-	DEBUG_I("posRead: %d,  Current Pose: %f", posRead[servo_ID], current_pose);
+	// DEBUG_I("Servo Init Type: %s,  Servo ID: %d", ((init_type) ? "true" : "false"), servo_ID);
+	// DEBUG_I("posRead: %d,  Current Pose: %f", posRead[servo_ID], current_pose);
 	//DEBUG_I("Current Pose: %f\n", current_pose);
 }
 

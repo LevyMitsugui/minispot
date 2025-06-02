@@ -7,9 +7,12 @@ using namespace std;
 
 // Default Constructor
 SpotServo::SpotServo():
-	servo_ID(0), home_angle(0), offset(0), leg_type(FL), joint_type(Shoulder) {}
+	servo_ID(0), stand_angle(0), home_angle(0), offset(0), leg_type(FL), joint_type(Shoulder), init_type(false) {
+		DEBUG_I("SpotServo Default Constructor\n");	
+	}
 
-SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_) {
+SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_, bool init) {
+	init_type = init;
 	if (joint_type_ == Shoulder)
 	{
 		min_pos = 1690;
@@ -69,7 +72,8 @@ SpotServo::SpotServo(const int & servo_ID_, const double & stand_angle_, const d
 void SpotServo::Init(){
 	int pos = 2047 + ((stand_angle + offset))/ 0.087912;
 	st.WritePosEx(servo_ID, pos, speed, acc); // 2047 is the center position of the servo
-	last_actuated = millis();	
+	last_actuated = millis();
+	DEBUG_I("Servo %d initalized", servo_ID);
 }
 
 // Spot Full Constructor
@@ -237,9 +241,11 @@ double PosToDeg(int pos) {
 
 void SpotServo::update_position_using_Feedback()
 {
+	Serial.printf("Servo %d type: %d\n", servo_ID, ServoType[servo_ID]);
 	getPositionFeedback(servo_ID);
 	current_pose = PosToDeg(posRead[servo_ID]) - offset;
-	//DEBUG_I("posRead: %d\n", posRead[servo_ID]);
+	DEBUG_I("Servo Init Type: %s,  Servo ID: %d", ((init_type) ? "true" : "false"), servo_ID);
+	DEBUG_I("posRead: %d,  Current Pose: %f", posRead[servo_ID], current_pose);
 	//DEBUG_I("Current Pose: %f\n", current_pose);
 }
 

@@ -25,7 +25,7 @@ public:
     /// \param offset_: motor position offset (due to mechanical fit issues)
     /// \param leg_type_: Front Left, Front Right, Back Left, or Back Right leg (see enum)
     /// \param joint_type_: Shoulder, Elbow or Wrist (see enum)
-    SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_);
+    SpotServo(const int & servo_ID_, const double & stand_angle_, const double & home_angle_, const double & offset_, const LegType & leg_type_, const JointType & joint_type_, bool init);
 
     void Init();
     
@@ -86,7 +86,7 @@ public:
 
     void Get_Feedback(float (&speed),float (&load),float (&position));
 
-    
+    bool init_type = false;
 
 private:
     // Intrinsic Parameters

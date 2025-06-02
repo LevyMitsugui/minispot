@@ -27,6 +27,17 @@ int SMS_STS::WritePosEx(u8 ID, s16 Position, u16 Speed, u8 ACC)
 	}
 	u8 bBuf[7];
 	bBuf[0] = ACC;
+	// Serial.print("bBuf[1]: "); Serial.println(bBuf[1]);
+	// Serial.print("bBuf[2]: "); Serial.println(bBuf[2]);
+	// Serial.print("Position: "); Serial.println(Position); //TODO remove this
+
+	// Serial.print("bBuf[3]: "); Serial.println(bBuf[3]);
+	// Serial.print("bBuf[4]: "); Serial.println(bBuf[4]);
+	// Serial.println("Zero: 0");
+
+	// Serial.print("bBuf[5]: "); Serial.println(bBuf[5]);
+	// Serial.print("bBuf[6]: "); Serial.println(bBuf[6]);
+	// Serial.print("Speed: "); Serial.println(Speed);
 	Host2SCS(bBuf+1, bBuf+2, Position);
 	Host2SCS(bBuf+3, bBuf+4, 0);
 	Host2SCS(bBuf+5, bBuf+6, Speed);
@@ -68,6 +79,35 @@ void SMS_STS::SyncWritePosEx(u8 ID[], u8 IDN, s16 Position[], u16 Speed[], u8 AC
 		}else{
 			offbuf[i*7] = 0;
 		}
+
+		// int base = i * 7;
+
+		// Serial.print("offbuf["); Serial.print(base + 1); Serial.print("]: "); //TODO remove this
+		// Serial.println(offbuf[base + 1]);
+
+		// Serial.print("offbuf["); Serial.print(base + 2); Serial.print("]: ");
+		// Serial.println(offbuf[base + 2]);
+
+		// Serial.print("Position["); Serial.print(i); Serial.print("]: ");
+		// Serial.println(Position[i]);
+
+		// Serial.print("offbuf["); Serial.print(base + 3); Serial.print("]: ");
+		// Serial.println(offbuf[base + 3]);
+
+		// Serial.print("offbuf["); Serial.print(base + 4); Serial.print("]: ");
+		// Serial.println(offbuf[base + 4]);
+
+		// Serial.println("Zero: 0");
+
+		// Serial.print("offbuf["); Serial.print(base + 5); Serial.print("]: ");
+		// Serial.println(offbuf[base + 5]);
+
+		// Serial.print("offbuf["); Serial.print(base + 6); Serial.print("]: ");
+		// Serial.println(offbuf[base + 6]);
+
+		// Serial.print("V: ");
+		// Serial.println(V);
+
         Host2SCS(offbuf+i*7+1, offbuf+i*7+2, Position[i]);
         Host2SCS(offbuf+i*7+3, offbuf+i*7+4, 0);
         Host2SCS(offbuf+i*7+5, offbuf+i*7+6, V);

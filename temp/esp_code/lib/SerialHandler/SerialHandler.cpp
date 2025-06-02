@@ -17,10 +17,10 @@ void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, Callb
     {
         char c = Serial.read();
         
-        Serial.print("Received: ");
-        Serial.print(c);
-        Serial.print("  bufferPos: ");
-        Serial.println(bufferPos);
+        // Serial.print("Received: ");
+        // Serial.print(c);
+        // Serial.print("  bufferPos: ");
+        // Serial.println(bufferPos);
         
         if (c == '\n' && !callback_enabled)
         {

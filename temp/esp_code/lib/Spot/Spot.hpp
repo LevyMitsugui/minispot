@@ -9,10 +9,10 @@
 #define N_SERVOS 12
 
 enum ServoIndex {
-    FL_SHOULDER, FL_ELBOW, FL_WRIST,
-    FR_SHOULDER, FR_ELBOW, FR_WRIST,
-    RL_SHOULDER, RL_ELBOW, RL_WRIST,
-    RR_SHOULDER, RR_ELBOW, RR_WRIST
+    FL_SHOULDER, FL_ELBOW, FL_WRIST, // leg 0
+    FR_SHOULDER, FR_ELBOW, FR_WRIST, // leg 1
+    RL_SHOULDER, RL_ELBOW, RL_WRIST, // leg 2
+    RR_SHOULDER, RR_ELBOW, RR_WRIST  // leg 3
 };
 
 class Spot
@@ -28,6 +28,8 @@ public:
     void getPositionString(char(& PosString)[256],long time);
     bool all_goals_reached();
 
+    double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
+
     void set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
                        const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed);
     void straight_calibration_stance();
@@ -35,8 +37,12 @@ public:
 
 
     SpotServo Servo_List[N_SERVOS];
+    double Mem_Agnles[N_SERVOS];
+
     
 private:
+    double max(double a0, double a1, double a2);
+
     u8 ID[N_SERVOS];
 };
 

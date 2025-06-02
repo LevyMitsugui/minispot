@@ -36,9 +36,8 @@ public:
     SerialHandler();
     SerialHandler(bool callback_enabled, char enCallbackChar);
     void HandleSerialEvent(char * inputBuffer, int & bufferPos, Callback cb, PI_COMMAND & pi_command, OFFSET_LEAN_FRAME & offset_lean_frame, SERVO_FRAME & servo_frame);
-
-private:
     void processPiCommand(const char *cmd, PI_COMMAND & pi_command);
     int parseServoFrame(char *buf, SERVO_FRAME & servo_frame);
     int parseOffsetLean(char *buf, OFFSET_LEAN_FRAME & offset_lean_frame);
+
 };

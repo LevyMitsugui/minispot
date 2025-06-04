@@ -1,5 +1,7 @@
 #include "Kinematics.hpp"
 
+Kinematics::Kinematics(const double & shoulder_length, const double & elbow_length, const double & wrist_length):shoulder_length(shoulder_length), elbow_length(elbow_length), wrist_length(wrist_length) {}
+
 void Kinematics::Initialize(const double & shoulder_length_, const double & elbow_length_, const double & wrist_length_)
 {
 	shoulder_length = shoulder_length_;

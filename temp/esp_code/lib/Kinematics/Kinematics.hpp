@@ -15,6 +15,8 @@ class Kinematics {
 		double NormalizeAngle(double angle);
 
 	public:
+
+		Kinematics(const double & shoulder_length_ = 0.04, const double & elbow_length_ = 0.07, const double & wrist_length_ = 0.11);
 		// using default constructor
 
 		/// \brief Initialize parameters

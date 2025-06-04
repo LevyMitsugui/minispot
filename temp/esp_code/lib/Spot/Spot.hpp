@@ -31,7 +31,10 @@ public:
     
     bool all_goals_reached();
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
-    void move_foot(int leg, double * vector, double time);
+    
+    void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
+    void pose(Eigen::Vector3d orientation, Eigen::Vector3d position);
+    bool touch_ground(int leg);
 
     void set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
                        const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed);
@@ -43,6 +46,11 @@ public:
     double Mem_Agnles[N_SERVOS];
 
     
+    double joint_angles[NUM_LEGS][NUM_JOINTS];
+    Eigen::Vector3d torsoOrientationRPY;
+    Eigen::Vector3d torsoPosition;
+    Eigen::Matrix4d TorsoToFoot[NUM_LEGS];
+
 private:
     double max(double a0, double a1, double a2);
 

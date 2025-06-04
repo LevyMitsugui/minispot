@@ -24,26 +24,31 @@ public:
               double foot_y = 0.17,
               double height = 0.145);
 
-    void HipToFoot(
+    void HipToFeet(
         Eigen::Vector3d HTF_vectors[NUM_LEGS], 
         const Eigen::Vector3d& orn, 
         const Eigen::Vector3d& pos, 
-        const Eigen::Matrix4d WorldToFoot[NUM_LEGS]);
+        const Eigen::Matrix4d TorsoToFoot[NUM_LEGS]);
+
+    void IK(
+        double jointAngles[NUM_LEGS][NUM_JOINTS],
+        const Eigen::Vector3d& bodyOrientationRPY,
+        const Eigen::Vector3d& bodyPosition);
 
     void IK(
         double joint_angles[NUM_LEGS][NUM_JOINTS], 
         const Eigen::Vector3d& orn, 
         const Eigen::Vector3d& pos, 
-        const Eigen::Matrix4d WorldToFoot[NUM_LEGS]);
+        const Eigen::Matrix4d TorsoToFoot[NUM_LEGS]);
    
-    void IKFootOverrides(
+    void IKFeetOverrides(
         double jointAngles[NUM_LEGS][NUM_JOINTS], 
         const Eigen::Vector3d& bodyOrientationRPY, 
         const Eigen::Vector3d& bodyPosition, 
-        const Eigen::Vector3d footShifts[NUM_LEGS]);
+        const Eigen::Vector3d feetShifts[NUM_LEGS]);
 
-    Eigen::Matrix4d WorldToHip[NUM_LEGS];
-    Eigen::Matrix4d WorldToFoot[NUM_LEGS];
+    Eigen::Matrix4d TorsoToHip[NUM_LEGS]; // Transformation matrixes from center of the torso to each shoulder joint
+    Eigen::Matrix4d TorsoToFoot[NUM_LEGS];// Transformation matrixes from center of the toser to each foot
     Kinematics Legs[NUM_LEGS];
     
 private:

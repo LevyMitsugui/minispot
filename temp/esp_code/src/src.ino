@@ -44,6 +44,9 @@ double height = 0.145;
 bool log_toggle = false;
 
 int cycle = 0;
+double cycle_time = 50000; // micros
+double current_time = 0;
+double last_time = 0;
 float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
 
 char inputBuffer[COMMAND_BUFFER_SIZE] = {0};
@@ -107,7 +110,7 @@ Eigen::Vector3d pos(0, 0, 0); // body position
 
 //auto joint_angles = model.IK(orn, pos, model.WorldToFoot); //TODO finish this
 
-double joint_angles[4][3];
+//double joint_angles[4][3];
 // model.IK(joint_angles, orn, pos, model.WorldToFoot);
 
 #define SPEED 125
@@ -115,6 +118,7 @@ double speeds[3] = {0.0, 0.0, 0.0};
 double dt_movement = 0.0;
 
 bool SERIAL_FORWARDING = false;
+
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -141,7 +145,7 @@ double angles_RR[3] = {0.0, 0.0, 0.0};
 int Speed_Norm = 1500;
 bool ini = true;
 
-Kinematics IK;
+//Kinematics IK;
 Utilities util;
 double Load = 0;
 
@@ -189,8 +193,8 @@ void setup()
   // Complete_Spot.Initialize(Servos,12);
 
   delay(5000);
-  IK.Initialize(0.04, 0.07, 0.11);
-  model.IK(joint_angles, orn, pos, model.WorldToFoot);
+  //IK.Initialize(0.04, 0.07, 0.11);
+  //model.IK(miniSpot.joint_angles, orn, pos);//, model.WorldToFoot);
   
 
   //miniSpot.Init_Servos();//TODO About the crash: try to see if where the class that deals with waveshare bus  is instantiated
@@ -198,7 +202,7 @@ void setup()
   miniSpot.Init();
 
 
-  miniSpot.prone_calibration_stance();
+  //miniSpot.prone_calibration_stance();
   Serial.println("ESP/LOG:Completed setup!");
   delay(5000);
   confirm_servos();
@@ -215,119 +219,127 @@ void loop()
   // Serial.print("ESP/LOOP/CYCLE:");
   // Serial.println(cycle);
 
-  if (pi_command.new_command){    
-    pi_command.new_command = false;
+  current_time = micros();
+  if(current_time - last_time > cycle_time){
+    last_time = current_time;
+    
+    if (pi_command.new_command){    
+      pi_command.new_command = false;
 
-    switch (pi_command.command)
-    {
-    case SET_STANCE_STRAIGHT:
-      Serial.println("SET_STANCE_STRAIGHT");
-      miniSpot.straight_calibration_stance();
-      break;
-    case SET_STANCE_PRONE:
-      Serial.println("SET_STANCE_PRONE");
-      miniSpot.prone_calibration_stance();
-      break;
-
-    case SET_SERVO_FRAME:
-      if (serialHandler.parseServoFrame(pi_command.package + 2, servo_frame) < 0)
-        break;
-      for (int i = 0; i < 12; i++)
+      switch (pi_command.command)
       {
-        miniSpot.Servo_List[i].SetGoal(servo_frame.pos[i], servo_frame.speed[i]);
-      }
-      miniSpot.Update_Spot(0);
-      break;
-
-    case SET_OFFSET_LEAN:
-      if (serialHandler.parseOffsetLean(pi_command.package + 2, offset_lean_frame) < 0)
-        // if(parseServoFrame(pi_command.package+2)<0)
+      case SET_STANCE_STRAIGHT:
+        Serial.println("SET_STANCE_STRAIGHT");
+        miniSpot.straight_calibration_stance();
         break;
-      // Serial.println("Offset Lean:");
-      orn.x() = offset_lean_frame.rpy[0];
-      orn.y() = offset_lean_frame.rpy[1];
-      orn.z() = offset_lean_frame.rpy[2];
+      case SET_STANCE_PRONE:
+        Serial.println("SET_STANCE_PRONE");
+        miniSpot.prone_calibration_stance();
+        break;
 
-      pos.x() = offset_lean_frame.xyz[0];
-      pos.y() = offset_lean_frame.xyz[1];
-      pos.z() = offset_lean_frame.xyz[2];
+      case SET_SERVO_FRAME:
+        if (serialHandler.parseServoFrame(pi_command.package + 2, servo_frame) < 0)
+          break;
+        for (int i = 0; i < 12; i++)
+        {
+          miniSpot.Servo_List[i].SetGoal(servo_frame.pos[i], servo_frame.speed[i]);
+        }
+        miniSpot.Update_Spot(0);
+        break;
 
-      // joint_angles = model.IK(orn, pos, model.WorldToFoot); // TODO fix this
+      case SET_OFFSET_LEAN:
+        if (serialHandler.parseOffsetLean(pi_command.package + 2, offset_lean_frame) < 0)
+          // if(parseServoFrame(pi_command.package+2)<0)
+          break;
+        // Serial.println("Offset Lean:");
+        orn.x() = offset_lean_frame.rpy[0];
+        orn.y() = offset_lean_frame.rpy[1];
+        orn.z() = offset_lean_frame.rpy[2];
 
-      // // Serial.println("Joint Angles in Degrees:");
-      // iterator = 0;
-      // for (const auto &leg : joint_angles){
-      //   for (double angle_rad : leg){
-      //     miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
-      //     iterator += 1;
-      //   }
-      // }
-      
-      // miniSpot.Update_Spot(0);
-      break;
+        pos.x() = offset_lean_frame.xyz[0];
+        pos.y() = offset_lean_frame.xyz[1];
+        pos.z() = offset_lean_frame.xyz[2];
 
-    case TOGGLE_LOG:
-      if (log_toggle){
-        Serial.println("ESP/LOG:Log:true");
+        // joint_angles = model.IK(orn, pos, model.WorldToFoot); // TODO fix this
+
+        // // Serial.println("Joint Angles in Degrees:");
+        // iterator = 0;
+        // for (const auto &leg : joint_angles){
+        //   for (double angle_rad : leg){
+        //     miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, offset_lean_frame.speed);
+        //     iterator += 1;
+        //   }
+        // }
+        
+        // miniSpot.Update_Spot(0);
+        break;
+
+      case TOGGLE_LOG:
+        if (log_toggle){
+          Serial.println("ESP/LOG:Log:true");
+        }
+        log_toggle = !log_toggle;
+        break;
+
+      default:
+        break;
       }
-      log_toggle = !log_toggle;
-      break;
-
-    default:
-      break;
     }
-  }
 
-  if (stream_control){
-    stream_control = false;
-    //joint_angles = model.IKWithFootOverrides(orn, pos, feet_stream_control.feet_shifts, leg_order);
-    model.IKFootOverrides(joint_angles, orn, pos, feet_stream_control.feet_shifts);
+    if (stream_control){
+      stream_control = false;
 
-    iterator = 0;
+      miniSpot.move_feet(feet_stream_control.feet_shifts);
 
-    for(int i = 0; i < NUM_LEGS; i++){
-      dt_movement = miniSpot.Leg_Joint_Speeds(speeds, joint_angles[i], iterator/3, 200);
-      for(int j = 0; j < NUM_JOINTS; j++){
-        DEBUG_I("JOINT: %d  speed: %.2f  Angle: %.2f", iterator % 3, speeds[iterator % 3], joint_angles[i][j]);
-        miniSpot.Servo_List[iterator].SetGoal(joint_angles[i][j] * 180 / M_PI, speeds[iterator%3]);
-        iterator += 1;
+      switch(feet_stream_control.selected){
+        case 0:
+          miniSpot.Servo_List[0].GetPoseEstimate();
+          miniSpot.Servo_List[1].GetPoseEstimate();
+          miniSpot.Servo_List[2].GetPoseEstimate();
+          break;
+        case 1:
+          miniSpot.Servo_List[3].GetPoseEstimate();
+          miniSpot.Servo_List[4].GetPoseEstimate();
+          miniSpot.Servo_List[5].GetPoseEstimate();
+          break;
+        case 2:
+          miniSpot.Servo_List[6].GetPoseEstimate();
+          miniSpot.Servo_List[7].GetPoseEstimate();
+          miniSpot.Servo_List[8].GetPoseEstimate();
+          break;
+        case 3:
+          miniSpot.Servo_List[9].GetPoseEstimate();
+          miniSpot.Servo_List[10].GetPoseEstimate();
+          miniSpot.Servo_List[11].GetPoseEstimate();
+          break;
       }
     }
-
-    // for (const auto &leg : joint_angles)
-    // {
-    //   // Serial.print("iterator: ");
-    //   // Serial.print(iterator);
-    //   dt_movement = miniSpot.Leg_Joint_Speeds(speeds, joint_angles[iterator/3].data(), iterator/3, 400);
-    //   for (double angle_rad : leg)
-    //   {
-    //     DEBUG_I("JOINT: %d  speed: %.2f", iterator % 3, speeds[iterator % 3]);
-    //     miniSpot.Servo_List[iterator].SetGoal(angle_rad * 180 / M_PI, speeds[iterator%3]);
-    //     iterator += 1;
-    //   }
-    // }
-    miniSpot.Update_Spot(0);
     switch(feet_stream_control.selected){
       case 0:
-        miniSpot.Servo_List[0].GetPoseEstimate();
-        miniSpot.Servo_List[1].GetPoseEstimate();
-        miniSpot.Servo_List[2].GetPoseEstimate();
+        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+        miniSpot.Servo_List[0].getLoad(),
+        miniSpot.Servo_List[1].getLoad(),
+        miniSpot.Servo_List[2].getLoad());
         break;
       case 1:
-        miniSpot.Servo_List[3].GetPoseEstimate();
-        miniSpot.Servo_List[4].GetPoseEstimate();
-        miniSpot.Servo_List[5].GetPoseEstimate();
+        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+        miniSpot.Servo_List[3].getLoad(),
+        miniSpot.Servo_List[4].getLoad(),
+        miniSpot.Servo_List[5].getLoad());
         break;
       case 2:
-        miniSpot.Servo_List[6].GetPoseEstimate();
-        miniSpot.Servo_List[7].GetPoseEstimate();
-        miniSpot.Servo_List[8].GetPoseEstimate();
+        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+        miniSpot.Servo_List[6].getLoad(),
+        miniSpot.Servo_List[7].getLoad(),
+        miniSpot.Servo_List[8].getLoad());
         break;
       case 3:
-        miniSpot.Servo_List[9].GetPoseEstimate();
-        miniSpot.Servo_List[10].GetPoseEstimate();
-        miniSpot.Servo_List[11].GetPoseEstimate();
+        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+        miniSpot.Servo_List[9].getLoad(),
+        miniSpot.Servo_List[10].getLoad(),
+        miniSpot.Servo_List[11].getLoad());
         break;
+
     }
   }
 }
@@ -363,6 +375,7 @@ bool process_stream_control(char c)
     } else if (feet_stream_control.step <= 0.01) {
       feet_stream_control.step = feet_stream_control.step - 0.001;
     }
+    break;
     break;
   case '1':
     feet_stream_control.selected = 0;

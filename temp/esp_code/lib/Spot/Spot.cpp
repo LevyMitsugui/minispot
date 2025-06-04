@@ -8,6 +8,9 @@ using namespace std;
 #define ENABLE_DEBUG
 #include <MacroDebugger.h>
 
+
+#define STD_SPEED 200
+
 Spot::Spot()
 {
     Init_Servos();
@@ -16,6 +19,8 @@ Spot::Spot()
         ID[i] = Servo_List[i].Get_servo_ID();
     }
     model = SpotModel();
+    torsoOrientationRPY = Eigen::Vector3d(0, 0, 0); // TODO ideally read the position of the servos and
+    torsoPosition = Eigen::Vector3d(0, 0, 0);       // do the direct kinematics and star from there.
 }
 
 void Spot::Init()
@@ -24,6 +29,8 @@ void Spot::Init()
     {
         this->Servo_List[i].Init();
     }
+
+    pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
 }
 
 void Spot::Init_Servos()
@@ -41,23 +48,6 @@ void Spot::Init_Servos()
     this->Servo_List[10] = SpotServo(11, 0, 0, 0, RR, Elbow, true);
     this->Servo_List[11] = SpotServo(12, 0, 0, 0, RR, Wrist, true);
 }
-// void Spot::Initialize(SpotServo *Servo_List_[], int nServos_)
-// {
-//     nServos = nServos_;
-//     for (int i = 0; i < nServos; i++)
-//     {
-//         // Find the correct position to insert the new servo
-//         int j = i;
-//         while (j > 0 && Servo_List_[i]->Get_servo_ID() < Servo_List[j - 1]->Get_servo_ID())
-//         {
-//             Servo_List[j] = Servo_List[j - 1];
-//             j--;
-//         }
-//         // Insert the new servo at the correct position
-//         Servo_List[j] = Servo_List_[i];
-//         ID[j] = Servo_List[j]->Get_servo_ID();
-//     }
-// }
 
 void Spot::Update_Spot(int ACC)
 {
@@ -74,17 +64,106 @@ void Spot::Update_Spot(int ACC)
     st.SyncWritePosEx(ID, N_SERVOS, Goal_Pos_list, Speed_list, ACC_list);
 }
 
-double Spot::getLoads()
+bool Spot::all_goals_reached()
 {
-    double Loads = 0;
-    double Load = 0;
     for (int i = 0; i < N_SERVOS; i++)
     {
-        Load = Servo_List[i].getLoad();
-        Loads = Loads + abs(Load) / 1000;
+        if (!Servo_List[i].GoalReached())
+        {
+            return false;
+        }
     }
-    return Loads;
+    return true;
+
 }
+
+void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){
+    model.IKFeetOverrides(joint_angles, torsoOrientationRPY, torsoPosition, vectors);
+
+    int iterator = 0;
+    double speeds[NUM_JOINTS];
+
+    for(int i = 0; i < NUM_LEGS; i++){
+      double dt_movement = Leg_Joint_Speeds(speeds, joint_angles[i], iterator/3, STD_SPEED);
+      for(int j = 0; j < NUM_JOINTS; j++){
+        Servo_List[iterator].SetGoal(joint_angles[i][j] * 180 / M_PI, speeds[iterator%3]);
+        iterator += 1;
+      }
+    }
+    Update_Spot(50);
+}
+
+// void Spot::move_foot(int leg, Eigen::Vector3d vector){
+    
+// }
+
+void Spot::pose(Eigen::Vector3d orientation, Eigen::Vector3d position){
+    model.IK(joint_angles, orientation, position);
+    int iterator = 0;
+    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
+        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
+            Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, STD_SPEED);
+            iterator += 1;
+        }
+    }
+    Update_Spot(50);
+}
+
+bool Spot::touch_ground(int leg){
+    if (Servo_List[leg * 3].getLoad() >= 0.0) return false;
+
+    while(Servo_List[leg * 3].getLoad() >= 0.0){
+        
+        Update_Spot(50);
+    }
+    return true;
+}
+
+double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const)
+{
+    double angles_[3] = 
+        {angles[0] * 180/PI,
+         angles[1] * 180/PI,
+         angles[2] * 180/PI};
+    
+    DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
+
+    double s_estimate = Servo_List[leg * 3].GetPoseEstimate();
+    double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimate();
+    double w_estimate = Servo_List[leg * 3 + 2].GetPoseEstimate();
+
+    
+    double shoulder_dist = abs(angles_[0] - s_estimate);
+    double elbow_dist    = abs(angles_[1] - e_estimate);
+    double wrist_dist    = abs(angles_[2] - w_estimate);
+
+    DEBUG_I("s_dist: %f, e_dist: %f, w_dist: %f", shoulder_dist, elbow_dist, wrist_dist);
+
+    double scaling_factor = max(shoulder_dist, elbow_dist, wrist_dist);
+
+    double dt_movement = scaling_factor / (speed_const * 0.087912);
+
+    double shoulder_scaled = shoulder_dist / scaling_factor;
+    double elbow_scaled = elbow_dist / scaling_factor;
+    double wrist_scaled = wrist_dist / scaling_factor;
+
+    double s_speed = 0.0;
+    double e_speed = 0.0;
+    double w_speed = 0.0;
+
+    s_speed = (shoulder_dist < POS_ERROR_THRESHOLD) ? 0 : speed_const / shoulder_scaled;
+    e_speed = (elbow_dist < POS_ERROR_THRESHOLD)    ? 0 : speed_const / elbow_scaled;
+    w_speed = (wrist_dist < POS_ERROR_THRESHOLD)    ? 0 : speed_const / wrist_scaled;
+
+    speed[0] = s_speed;
+    speed[1] = e_speed;
+    speed[2] = w_speed;
+
+    DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", s_speed, e_speed, w_speed);
+
+    return dt_movement;
+}
+
 void Spot::getPositionString(char (&PosString)[256], long time)
 {
     memset(PosString, 0, 256);
@@ -122,85 +201,16 @@ void Spot::getLoadString(char (&LoadString)[256], long time) // MAX_BUFFER_LEN =
     }
 }
 
-bool Spot::all_goals_reached()
+double Spot::getLoads()
 {
+    double Loads = 0;
+    double Load = 0;
     for (int i = 0; i < N_SERVOS; i++)
     {
-        if (!Servo_List[i].GoalReached())
-        {
-            return false;
-        }
+        Load = Servo_List[i].getLoad();
+        Loads = Loads + abs(Load) / 1000;
     }
-    return true;
-}
-
-double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const)
-{
-    Serial.print("LEG: ");
-    Serial.println(leg);
-    
-    double angles_[3] = 
-        {angles[0] * 180/PI,
-         angles[1] * 180/PI,
-         angles[2] * 180/PI};
-    
-    Serial.print("angles[0]: ");
-    Serial.print(angles_[0]);
-    Serial.print("  angles[1]: ");
-    Serial.print(angles_[1]);
-    Serial.print("  angles[2]: ");
-    Serial.println(angles_[2]);
-
-    double s_estimate = Servo_List[leg * 3].GetPoseEstimate();
-    double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimate();
-    double w_estimate = Servo_List[leg * 3 + 2].GetPoseEstimate();
-    
-    // double shoulder_dist = abs(angles[0] - Servo_List[leg * 3].GetPoseEstimate());
-    // double elbow_dist    = abs(angles[1] - Servo_List[leg * 3 + 1].GetPoseEstimate());
-    // double wrist_dist    = abs(angles[2] - Servo_List[leg * 3 + 2].GetPoseEstimate());
-
-    
-    double shoulder_dist = abs(angles_[0] - s_estimate);
-    // if (shoulder_dist < POS_ERROR_THRESHOLD) shoulder_dist = 0;
-    double elbow_dist    = abs(angles_[1] - e_estimate);
-    // if (elbow_dist < POS_ERROR_THRESHOLD) elbow_dist = 0;
-    double wrist_dist    = abs(angles_[2] - w_estimate);
-    // if (wrist_dist < POS_ERROR_THRESHOLD) wrist_dist = 0;
-
-    Serial.print("shoulder_dist: ");
-    Serial.print(shoulder_dist);
-    Serial.print("  elbow_dist: ");
-    Serial.print(elbow_dist);
-    Serial.print("  wrist_dist: ");
-    Serial.println(wrist_dist);
-
-    double scaling_factor = max(shoulder_dist, elbow_dist, wrist_dist);
-
-    double dt_movement = scaling_factor / (speed_const * 0.087912);
-
-    double shoulder_scaled = shoulder_dist / scaling_factor;
-    double elbow_scaled = elbow_dist / scaling_factor;
-    double wrist_scaled = wrist_dist / scaling_factor;
-
-    double s_speed = 0.0;
-    double e_speed = 0.0;
-    double w_speed = 0.0;
-
-    s_speed = (shoulder_dist < POS_ERROR_THRESHOLD) ? 0 : speed_const / shoulder_scaled;
-    e_speed = (elbow_dist < POS_ERROR_THRESHOLD)    ? 0 : speed_const / elbow_scaled;
-    w_speed = (wrist_dist < POS_ERROR_THRESHOLD)    ? 0 : speed_const / wrist_scaled;
-
-    speed[0] = s_speed;
-    speed[1] = e_speed;
-    speed[2] = w_speed;
-
-    DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", s_speed, e_speed, w_speed);
-
-    return dt_movement;
-}
-
-void Spot::move_foot(int leg, double * vector, double time){
-
+    return Loads;
 }
 
 void Spot::set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,

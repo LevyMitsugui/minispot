@@ -77,6 +77,10 @@ bool Spot::all_goals_reached()
 
 }
 
+void Spot::getFootPosition(int leg, Eigen::Vector3d &footPosition){
+    footPosition = model.T_bf[leg].block<3,1>(0,3);
+}
+
 void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){
     model.IKFeetOverrides(joint_angles, torsoOrientationRPY, torsoPosition, vectors);
 
@@ -93,9 +97,32 @@ void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){
     Update_Spot(50);
 }
 
-// void Spot::move_foot(int leg, Eigen::Vector3d vector){
-    
-// }
+void Spot::move_foot(int leg, Eigen::Vector3d vector){
+    model.IK_singular(joint_angles[leg], vector, leg);
+
+    double speeds[NUM_JOINTS];
+    double dt = Leg_Joint_Speeds(speeds, joint_angles[leg], leg, STD_SPEED);
+
+    for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
+        Servo_List[leg * 3 + jointIdx].SetGoal(joint_angles[leg][jointIdx] * 180 / M_PI, speeds[jointIdx]);
+    }
+    Update_Spot(50);
+}
+
+void Spot::rotate(double row, double pitch, double yaw){
+    DEBUG_I("row: %f, pitch: %f, yaw: %f", row, pitch, yaw);
+    torsoOrientationRPY = Eigen::Vector3d(row, pitch, yaw);
+    model.rotateBody(joint_angles, torsoOrientationRPY);
+
+    int iterator = 0;
+    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
+        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
+            //Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, STD_SPEED);
+            iterator += 1;
+        }
+    }
+    //Update_Spot(50);
+}
 
 void Spot::pose(Eigen::Vector3d orientation, Eigen::Vector3d position){
     model.IK(joint_angles, orientation, position);
@@ -126,7 +153,7 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
          angles[1] * 180/PI,
          angles[2] * 180/PI};
     
-    DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
+    // DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
 
     double s_estimate = Servo_List[leg * 3].GetPoseEstimate();
     double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimate();
@@ -137,7 +164,7 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
     double elbow_dist    = abs(angles_[1] - e_estimate);
     double wrist_dist    = abs(angles_[2] - w_estimate);
 
-    DEBUG_I("s_dist: %f, e_dist: %f, w_dist: %f", shoulder_dist, elbow_dist, wrist_dist);
+    // DEBUG_I("s_dist: %f, e_dist: %f, w_dist: %f", shoulder_dist, elbow_dist, wrist_dist);
 
     double scaling_factor = max(shoulder_dist, elbow_dist, wrist_dist);
 
@@ -159,7 +186,7 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
     speed[1] = e_speed;
     speed[2] = w_speed;
 
-    DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", s_speed, e_speed, w_speed);
+    // DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", s_speed, e_speed, w_speed);
 
     return dt_movement;
 }

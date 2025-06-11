@@ -81,3 +81,44 @@ double Kinematics::NormalizeAngle(double angle) {
     while (angle < -M_PI) angle += 2 * M_PI;
     return angle;
 }
+
+void Kinematics::ForwardKinematics(const double (&a)[3],
+                                   const LegQuadrant &legquad,
+                                   double (&p)[3])
+{
+    const double hip   = a[0];
+    const double elbow = a[1];
+    const double wrist = a[2];
+
+    // Convert to the internal angles used by the IK derivation
+    double s = -hip;                           // shoulder roll
+    double e =  (legquad == Right) ?  elbow    // hip pitch
+                                   : -elbow;   // (sign-flip left)
+    double w =  (legquad == Right) ?  wrist
+                                   : -wrist;   // knee/ankle
+
+    // Pre-compute helper terms
+    const double phi = atan2(wrist_length * sin(w),
+                             elbow_length + wrist_length * cos(w));
+    const double theta = e + phi;
+    const double d = sqrt(pow(elbow_length,2) +
+                          pow(wrist_length,2) +
+                          2.0 * elbow_length * wrist_length * cos(w));
+
+    const double r = fabs(d * cos(theta));     // ‖projection in YZ‖
+    const double x = -r * tan(theta);          // forward (+) / back (-)
+
+    // Shoulder offset sign differs between legs
+    const double B = atan2(r,
+                           (legquad == Right ? -shoulder_length
+                                             :  shoulder_length));
+    const double A = -s - B;
+    const double yz_norm = sqrt(pow(shoulder_length,2) + r*r);
+
+    const double y = yz_norm * cos(A);
+    const double z = yz_norm * sin(A);
+
+    p[0] = x;
+    p[1] = y;
+    p[2] = z;
+}

@@ -30,9 +30,13 @@ public:
     void getPositionString(char(& PosString)[256],long time);
     
     bool all_goals_reached();
+    void getFootPosition(int leg, Eigen::Vector3d &footPosition);
+
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
     
     void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
+    void move_foot(int leg, Eigen::Vector3d vector);
+    void rotate(double row, double pitch, double yaw);
     void pose(Eigen::Vector3d orientation, Eigen::Vector3d position);
     bool touch_ground(int leg);
 
@@ -49,7 +53,7 @@ public:
     double joint_angles[NUM_LEGS][NUM_JOINTS];
     Eigen::Vector3d torsoOrientationRPY;
     Eigen::Vector3d torsoPosition;
-    Eigen::Matrix4d TorsoToFoot[NUM_LEGS];
+    Eigen::Matrix4d TorsoToFoot[NUM_LEGS]; // TODO maybe this should be exclusive for model class
 
 private:
     double max(double a0, double a1, double a2);

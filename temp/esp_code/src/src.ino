@@ -63,6 +63,9 @@ enum CONTROL_STATES
   SET_STANCE_STRAIGHT, // 3
   SET_STANCE_PRONE,    // 4
   TOGGLE_LOG,          // 5
+
+  SET_POSE_WALK,       // 6
+  SET_POSE_PRONE,      // 7
 };
 enum SERVOS_CONTROL_IDX
 { // Follows indexes from the declaration "SpotServo * Servos[12]" below
@@ -85,6 +88,8 @@ typedef struct FEET_STREAM_CONTROL
   float step;
   int selected;
   Eigen::Vector3d feet_shifts[NUM_LEGS];
+  Eigen::Vector3d body_orientation;
+  Eigen::Vector3d body_translation;
 } FEET_STREAM_CONTROL;
 
 SERVO_FRAME servo_frame;
@@ -92,7 +97,7 @@ CONTROL_STATES control_state = IDLE;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER_CONTROL;
 OFFSET_LEAN_FRAME offset_lean_frame = {{0}, {0}};
 PI_COMMAND pi_command = {false, 0, {0}, 0};
-FEET_STREAM_CONTROL feet_stream_control = {0.01, 0, {Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0)}};
+FEET_STREAM_CONTROL feet_stream_control = {0.01, 0, {Eigen::Vector3d(0.0925, 0.085, -0.145), Eigen::Vector3d(0.0925, -0.085, -0.145), Eigen::Vector3d(-0.0925, 0.085, -0.145), Eigen::Vector3d(-0.0925, -0.085, -0.145)}, Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0)};
 
 // helper, TODO remove
 const std::array<std::string, 4> leg_order = {"FL", "FR", "BL", "BR"};
@@ -118,6 +123,9 @@ double speeds[3] = {0.0, 0.0, 0.0};
 double dt_movement = 0.0;
 
 bool SERIAL_FORWARDING = false;
+
+int move_foot_cmd = 0; // TODO remove later, only used for testing #2254
+bool printLoads = false; // TODO remoce later. #1137
 
 // ----------------------------------------------------
 
@@ -192,7 +200,7 @@ void setup()
 
   // Complete_Spot.Initialize(Servos,12);
 
-  delay(5000);
+  delay(2000);
   //IK.Initialize(0.04, 0.07, 0.11);
   //model.IK(miniSpot.joint_angles, orn, pos);//, model.WorldToFoot);
   
@@ -204,7 +212,7 @@ void setup()
 
   //miniSpot.prone_calibration_stance();
   Serial.println("ESP/LOG:Completed setup!");
-  delay(5000);
+  delay(2000);
   confirm_servos();
   ini = false;
 }
@@ -274,6 +282,14 @@ void loop()
         // miniSpot.Update_Spot(0);
         break;
 
+      case SET_POSE_WALK:
+        miniSpot.pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
+        break;
+      
+      case SET_POSE_PRONE:
+        miniSpot.pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0.02));
+        break;
+
       case TOGGLE_LOG:
         if (log_toggle){
           Serial.println("ESP/LOG:Log:true");
@@ -286,62 +302,88 @@ void loop()
       }
     }
 
-    if (stream_control){
+    if (move_foot_cmd == 1){ // TODO remove this later #2245
+      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.115));
+      move_foot_cmd = 0;
+      stream_control = false;
+    } else if (move_foot_cmd == 2) {
+      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.145));
+      move_foot_cmd = 0;
+      stream_control = false;
+    } else if (stream_control){
       stream_control = false;
 
-      miniSpot.move_feet(feet_stream_control.feet_shifts);
+      //miniSpot.move_feet(feet_stream_control.feet_shifts);
 
       switch(feet_stream_control.selected){
         case 0:
+          miniSpot.move_foot(0, feet_stream_control.feet_shifts[0]);
           miniSpot.Servo_List[0].GetPoseEstimate();
           miniSpot.Servo_List[1].GetPoseEstimate();
           miniSpot.Servo_List[2].GetPoseEstimate();
           break;
         case 1:
+          miniSpot.move_foot(1, feet_stream_control.feet_shifts[1]);
           miniSpot.Servo_List[3].GetPoseEstimate();
           miniSpot.Servo_List[4].GetPoseEstimate();
           miniSpot.Servo_List[5].GetPoseEstimate();
           break;
         case 2:
+          miniSpot.move_foot(2, feet_stream_control.feet_shifts[2]);
           miniSpot.Servo_List[6].GetPoseEstimate();
           miniSpot.Servo_List[7].GetPoseEstimate();
           miniSpot.Servo_List[8].GetPoseEstimate();
           break;
         case 3:
+          miniSpot.move_foot(3, feet_stream_control.feet_shifts[3]);
           miniSpot.Servo_List[9].GetPoseEstimate();
           miniSpot.Servo_List[10].GetPoseEstimate();
           miniSpot.Servo_List[11].GetPoseEstimate();
           break;
+        case 4:
+          miniSpot.rotate(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.y());
+          break;
+      }
+      if (feet_stream_control.selected <4) printFootPos(feet_stream_control.selected);
+      miniSpot.getLoads();
+    }
+
+    if(printLoads){ // TODO remove this later #1137
+      switch(feet_stream_control.selected){
+        case 0:
+          DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+          miniSpot.Servo_List[0].getLoad(),
+          miniSpot.Servo_List[1].getLoad(),
+          miniSpot.Servo_List[2].getLoad());
+          break;
+        case 1:
+          DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+          miniSpot.Servo_List[3].getLoad(),
+          miniSpot.Servo_List[4].getLoad(),
+          miniSpot.Servo_List[5].getLoad());
+          break;
+        case 2:
+          DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+          miniSpot.Servo_List[6].getLoad(),
+          miniSpot.Servo_List[7].getLoad(),
+          miniSpot.Servo_List[8].getLoad());
+          break;
+        case 3:
+          DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
+          miniSpot.Servo_List[9].getLoad(),
+          miniSpot.Servo_List[10].getLoad(),
+          miniSpot.Servo_List[11].getLoad());
+          break;
+
       }
     }
-    switch(feet_stream_control.selected){
-      case 0:
-        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
-        miniSpot.Servo_List[0].getLoad(),
-        miniSpot.Servo_List[1].getLoad(),
-        miniSpot.Servo_List[2].getLoad());
-        break;
-      case 1:
-        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
-        miniSpot.Servo_List[3].getLoad(),
-        miniSpot.Servo_List[4].getLoad(),
-        miniSpot.Servo_List[5].getLoad());
-        break;
-      case 2:
-        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
-        miniSpot.Servo_List[6].getLoad(),
-        miniSpot.Servo_List[7].getLoad(),
-        miniSpot.Servo_List[8].getLoad());
-        break;
-      case 3:
-        DEBUG_I("S_LOAD: %f, E_LOAD: %f, W_LOAD: %f", 
-        miniSpot.Servo_List[9].getLoad(),
-        miniSpot.Servo_List[10].getLoad(),
-        miniSpot.Servo_List[11].getLoad());
-        break;
-
-    }
   }
+}
+
+void printFootPos(int leg){
+  Eigen::Vector3d footPosition;
+  miniSpot.getFootPosition(leg, footPosition);
+  DEBUG_I("Foot Position: %f, %f, %f", footPosition[0], footPosition[1], footPosition[2]);
 }
 
 void serialEvent()
@@ -376,7 +418,6 @@ bool process_stream_control(char c)
       feet_stream_control.step = feet_stream_control.step - 0.001;
     }
     break;
-    break;
   case '1':
     feet_stream_control.selected = 0;
     break;
@@ -389,26 +430,53 @@ bool process_stream_control(char c)
   case '4':
     feet_stream_control.selected = 3;
     break;
+  case '5':
+    feet_stream_control.selected = 4;
+    break;
   case 'i':
-    feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() + feet_stream_control.step;
+    if (feet_stream_control.selected < 4)
+      feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() + feet_stream_control.step;
+    else if (feet_stream_control.selected == 4)
+      feet_stream_control.body_orientation.x() += feet_stream_control.step;
     break;
   case 'k':
-    feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() - feet_stream_control.step;
+    if (feet_stream_control.selected < 4)
+      feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() - feet_stream_control.step;
+    else if (feet_stream_control.selected == 4)
+      feet_stream_control.body_orientation.x() -= feet_stream_control.step;
     break;
   case 'j':
-    feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() + feet_stream_control.step;
+    if (feet_stream_control.selected < 4)
+      feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() + feet_stream_control.step;
+    else if (feet_stream_control.selected == 4)
+      feet_stream_control.body_orientation.y() += feet_stream_control.step;
     break;
   case 'l':
-    feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() - feet_stream_control.step;
+    if (feet_stream_control.selected < 4)
+      feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() - feet_stream_control.step;
+    else if (feet_stream_control.selected == 4)
+      feet_stream_control.body_orientation.y() -= feet_stream_control.step;
     break;
   case 'u':
-    feet_stream_control.feet_shifts[feet_stream_control.selected].z() = feet_stream_control.feet_shifts[feet_stream_control.selected].z() + feet_stream_control.step;
+    if (feet_stream_control.selected < 4)
+      feet_stream_control.feet_shifts[feet_stream_control.selected].z() = feet_stream_control.feet_shifts[feet_stream_control.selected].z() + feet_stream_control.step;
+    else if (feet_stream_control.selected == 4)
+      feet_stream_control.body_orientation.z() += feet_stream_control.step;
     break;
   case 'o':
-    feet_stream_control.feet_shifts[feet_stream_control.selected].z() = feet_stream_control.feet_shifts[feet_stream_control.selected].z() - feet_stream_control.step;
+    if (feet_stream_control.selected < 4)
+      feet_stream_control.feet_shifts[feet_stream_control.selected].z() = feet_stream_control.feet_shifts[feet_stream_control.selected].z() - feet_stream_control.step;
+    else if (feet_stream_control.selected == 4)
+      feet_stream_control.body_orientation.z() -= feet_stream_control.step;
     break;
   case 'p':
     confirm_servos();
+    break;
+  case 'h':
+    move_foot_cmd = 1; // TODO remove later [tag #2254] (use ctrl+f to find parent)
+    break;
+  case 'y':
+    move_foot_cmd = 2; // TODO remove later [tag #2254] (use ctrl+f to find parent)
     break;
   default:
     break;

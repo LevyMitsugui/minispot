@@ -60,6 +60,6 @@ class Kinematics {
 		/// \returns: pointer to beginning of array containing joint angles for this leg
 		double GetJointAngles(const double & x, const double & y, const double & z, const LegQuadrant & legquad, double (& angles) [3]);
 
-
+		void ForwardKinematics(const double (&angles)[3], const LegQuadrant &legquad, double (&xyz)[3]);
 };
 #endif

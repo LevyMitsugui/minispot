@@ -35,11 +35,16 @@ public:
         const Eigen::Vector3d& bodyOrientationRPY,
         const Eigen::Vector3d& bodyPosition);
 
-    void IK(
-        double joint_angles[NUM_LEGS][NUM_JOINTS], 
-        const Eigen::Vector3d& orn, 
-        const Eigen::Vector3d& pos, 
-        const Eigen::Matrix4d TorsoToFoot[NUM_LEGS]);
+    // void IK(
+    //     double joint_angles[NUM_LEGS][NUM_JOINTS], 
+    //     const Eigen::Vector3d& orn, 
+    //     const Eigen::Vector3d& pos, 
+    //     const Eigen::Matrix4d T_fb[NUM_LEGS]);
+
+    void IK_singular(
+        double legJointAngles[NUM_JOINTS],
+        Eigen::Vector3d newFootPos,         // new foot pos relative to robot torso. 
+        int leg);
    
     void IKFeetOverrides(
         double jointAngles[NUM_LEGS][NUM_JOINTS], 
@@ -47,8 +52,27 @@ public:
         const Eigen::Vector3d& bodyPosition, 
         const Eigen::Vector3d feetShifts[NUM_LEGS]);
 
-    Eigen::Matrix4d TorsoToHip[NUM_LEGS]; // Transformation matrixes from center of the torso to each shoulder joint
-    Eigen::Matrix4d TorsoToFoot[NUM_LEGS];// Transformation matrixes from center of the toser to each foot
+    void FK_singular(
+        double legJointAngles[NUM_JOINTS],
+        int leg, 
+        Eigen::Vector3d& footPosition);
+
+    /**
+     * \brief Apply transforms to the FEET so the body performs a rotation
+     */
+    void rotateBody(
+        double jointAngles[NUM_LEGS][NUM_JOINTS],
+        const Eigen::Vector3d& bodyOrientationRPY);
+
+    /**
+     * \brief Apply transforms to the FEET so the body performs a translation
+     */
+    void translateBody(
+        double jointAngles[NUM_LEGS][NUM_JOINTS],
+        const Eigen::Vector3d& bodyPosition);
+
+    Eigen::Matrix4d T_bh[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each shoulder joint
+    Eigen::Matrix4d T_bf[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each foot
     Kinematics Legs[NUM_LEGS];
     
 private:

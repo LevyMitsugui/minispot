@@ -22,6 +22,8 @@ void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, Callb
         // Serial.print("  bufferPos: ");
         // Serial.println(bufferPos);
         
+        if (c == ' ') ESP.restart();
+
         if (c == '\n' && !callback_enabled)
         {
             inputBuffer[bufferPos] = '\0'; // Null-terminate string

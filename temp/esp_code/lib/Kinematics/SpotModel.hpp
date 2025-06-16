@@ -29,6 +29,8 @@ public:
         const Eigen::Vector3d& orn, 
         const Eigen::Vector3d& pos, 
         const Eigen::Matrix4d TorsoToFoot[NUM_LEGS]);
+    
+    void HipToBodyV(int leg, Eigen::Vector3d p_hf, Eigen::Vector3d& p_bf);
 
     void IK(
         double jointAngles[NUM_LEGS][NUM_JOINTS],

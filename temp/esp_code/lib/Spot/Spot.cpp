@@ -9,7 +9,7 @@ using namespace std;
 #include <MacroDebugger.h>
 
 
-#define STD_SPEED 200
+#define STD_SPEED 300
 
 Spot::Spot()
 {
@@ -145,6 +145,28 @@ bool Spot::touch_ground(int leg){
     }
     return true;
 }
+
+void Spot::perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us){
+    double currentTime_us = micros();
+    double prevTime_us = currentTime_us;
+    double dt = 0.0;
+    int frameNumber = 0;
+
+    while (frameNumber < nFrames){
+        currentTime_us = micros();
+        dt = currentTime_us - prevTime_us;
+        //DEBUG_I("current: %f, Previous : %f, dt: %f", currentTime_us, prevTime_us, dt);
+        if(dt > timeInterval_us){
+            DEBUG_I("Frame update: %d", frameNumber);
+            prevTime_us = currentTime_us;
+
+            Eigen::Vector3d vecPos(posFrames[frameNumber][0], posFrames[frameNumber][1], posFrames[frameNumber][2]);
+            move_foot(leg, vecPos);
+            frameNumber += 1;
+        }
+    }
+}
+
 
 double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const)
 {

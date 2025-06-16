@@ -32,6 +32,8 @@ public:
     bool all_goals_reached();
     void getFootPosition(int leg, Eigen::Vector3d &footPosition);
 
+    void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
+
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
     
     void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
@@ -55,11 +57,14 @@ public:
     Eigen::Vector3d torsoPosition;
     Eigen::Matrix4d TorsoToFoot[NUM_LEGS]; // TODO maybe this should be exclusive for model class
 
+
+    SpotModel model;
+
 private:
     double max(double a0, double a1, double a2);
 
     u8 ID[N_SERVOS];
-    SpotModel model;
+    //SpotModel model;
 };
 
 

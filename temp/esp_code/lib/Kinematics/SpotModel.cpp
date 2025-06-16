@@ -96,7 +96,7 @@ void SpotModel::HipToFeet(
 
 void SpotModel::HipToBodyV(int leg, Eigen::Vector3d p_hf, Eigen::Vector3d& p_bf)
 {
-    Eigen::Vector4d v_v = LieAlgebra::TransInv(T_bh[leg]) * Eigen::Vector4d(p_hf.x(), p_hf.y(), p_hf.z(), 1);
+    Eigen::Vector4d v_v = T_bh[leg] * Eigen::Vector4d(p_hf.x(), p_hf.y(), p_hf.z(), 1);
     p_bf = Eigen::Vector3d(v_v.x(), v_v.y(), v_v.z());
 }
 

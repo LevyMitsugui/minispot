@@ -33,6 +33,7 @@ public:
     void getFootPosition(int leg, Eigen::Vector3d &footPosition);
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
+    void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
 
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
     

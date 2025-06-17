@@ -166,34 +166,87 @@ void Spot::perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], do
     }
 }
 
+// void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles){
+//     double currentTime_us = micros();
+//     double prevTime_us = currentTime_us;
+//     double dt = 0.0;
+//     int frameNumber;
+
+//     Eigen::Vector3d vecPos1(posFrames[0][frameNumber][0], posFrames[0][frameNumber][1], posFrames[0][frameNumber][2]);
+//     Eigen::Vector3d vecPos2(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
+//     Eigen::Vector3d vecPos3(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
+//     Eigen::Vector3d vecPos4(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
+//     move_foot(FL, vecPos1);
+//     move_foot(FR, vecPos2);
+//     move_foot(RL, vecPos3);
+//     move_foot(RR, vecPos4);
+
+//     for (int i = 0; i < cycles; i++){
+//         frameNumber = 1;
+//         while (frameNumber < nFrames){
+//             currentTime_us = micros();
+//             dt = currentTime_us - prevTime_us;
+//             //DEBUG_I("current: %f, Previous : %f, dt: %f", currentTime_us, prevTime_us, dt);
+//             if(dt > timeInterval_us){
+//                 prevTime_us = currentTime_us;
+
+//                 vecPos1 = Eigen::Vector3d(posFrames[0][frameNumber][0], posFrames[0][frameNumber][1], posFrames[0][frameNumber][2]);
+//                 vecPos2 = Eigen::Vector3d(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
+//                 vecPos3 = Eigen::Vector3d(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
+//                 vecPos4 = Eigen::Vector3d(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
+//                 move_foot(FL, vecPos1);
+//                 move_foot(FR, vecPos2);
+//                 move_foot(RL, vecPos3);
+//                 move_foot(RR, vecPos4);
+                
+//                 frameNumber += 1;
+//             }
+//         }   
+//     }
+// }
+
 void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles){
     double currentTime_us = micros();
     double prevTime_us = currentTime_us;
     double dt = 0.0;
-    int frameNumber;
+    int frameNumber = 0;
+    int cycle = 0;
 
-    for (int i = 0; i < cycles; i++){
-        frameNumber = 0;
-        while (frameNumber < nFrames){
-            currentTime_us = micros();
-            dt = currentTime_us - prevTime_us;
-            //DEBUG_I("current: %f, Previous : %f, dt: %f", currentTime_us, prevTime_us, dt);
-            if(dt > timeInterval_us){
-                prevTime_us = currentTime_us;
+    Eigen::Vector3d vecPos1(posFrames[0][0][0], posFrames[0][0][1], posFrames[0][0][2]);
+    Eigen::Vector3d vecPos2(posFrames[1][0][0], posFrames[1][0][1], posFrames[1][0][2]);
+    Eigen::Vector3d vecPos3(posFrames[2][0][0], posFrames[2][0][1], posFrames[2][0][2]);
+    Eigen::Vector3d vecPos4(posFrames[3][0][0], posFrames[3][0][1], posFrames[3][0][2]);
+    move_foot(FL, vecPos1);
+    move_foot(FR, vecPos2);
+    move_foot(RL, vecPos3);
+    move_foot(RR, vecPos4);
+        
+    while (cycle < cycles){
+        currentTime_us = micros();
+        dt = currentTime_us - prevTime_us;
+        
+        if(dt > timeInterval_us){
+            DEBUG_I("Frame: %d", frameNumber); 
+            prevTime_us = currentTime_us;
 
-                Eigen::Vector3d vecPos1(posFrames[0][frameNumber][0], posFrames[0][frameNumber][1], posFrames[0][frameNumber][2]);
-                Eigen::Vector3d vecPos2(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
-                Eigen::Vector3d vecPos3(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
-                Eigen::Vector3d vecPos4(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
-                move_foot(FL, vecPos1);
-                move_foot(FR, vecPos2);
-                move_foot(RL, vecPos3);
-                move_foot(RR, vecPos4);
-                
-                frameNumber += 1;
-            }
-        }   
-    }
+            vecPos1 = Eigen::Vector3d(posFrames[0][frameNumber][0], posFrames[0][frameNumber][1], posFrames[0][frameNumber][2]);
+            vecPos2 = Eigen::Vector3d(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
+            vecPos3 = Eigen::Vector3d(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
+            vecPos4 = Eigen::Vector3d(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
+            move_foot(FL, vecPos1);
+            move_foot(FR, vecPos2);
+            move_foot(RL, vecPos3);
+            move_foot(RR, vecPos4);
+            
+            frameNumber += 1;
+        }
+
+        if (frameNumber > 17) {
+            frameNumber = 1;
+            cycle +=1;
+        }
+        taskYIELD();
+    }   
 }
 
 double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const)

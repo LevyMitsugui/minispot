@@ -64,7 +64,6 @@ int bufferPos = 0;
 
 //TODO fix GetPoseEstimate()
 
-
 enum CONTROL_STATES
 {
   IDLE,                // 0
@@ -145,6 +144,15 @@ bool SERIAL_FORWARDING = false;
 int move_foot_cmd = 0; // TODO remove later, only used for testing #2254
 bool printLoads = false; // TODO remoce later. #1137
 
+
+
+void test_task(void *pvParameters) {
+  while(1){
+    DEBUG_I("TEST TASK TEST TASK TEST TASK TEST TASK");
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -190,7 +198,7 @@ void confirm_servos(){ //TODO continue here, have to run this, IDS seems wrong, 
     //miniSpot.Servo_List[i].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
     double pos = miniSpot.Servo_List[i].GetPoseEstimate();
     Serial.print(" Ang: ");
-    // Serial.print(positionShoulder);
+    // Serial.prin(positionShoulder);
     Serial.print(pos);
     
     //Serial.println(miniSpot.Servo_List[i].GetPoseEstimate());
@@ -234,9 +242,14 @@ void setup()
   confirm_servos();
   ini = false;
 
-  ConvertAnglesToBodyXYZ(shoulder_list_RR, elbow_list_RR, wrist_list_RR, miniSpot.model, converted_xyz);
-  DEBUG_I("\n\n NEXT \n\n");
-  ConvertAnglesToBodyXYZ(shoulder_list_RL, elbow_list_RL, wrist_list_RL, miniSpot.model, converted_xyz);
+  // xTaskCreate(
+  //   test_task,
+  //   "test_task",
+  //   10000,
+  //   NULL,
+  //   1,
+  //   NULL
+  // );
 }
 
 void loop()
@@ -324,7 +337,8 @@ void loop()
 
       case GAIT_BACKWARD:
         DEBUG_I("GAIT_BACKWARD");
-        miniSpot.perform_gait( nCyclePoints, gait_backward, 120000.0, 5);
+        //miniSpot.perform_gait( nCyclePoints, gait_backward, 120000.0, 5);
+        miniSpot.perform_gait( nCyclePoints, gait_backward, 600000.0, 5);
         break;
 
       case GAIT_RIGHT:

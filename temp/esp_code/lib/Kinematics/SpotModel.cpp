@@ -225,6 +225,17 @@ void SpotModel::IK_singular(
     Eigen::Matrix4d T_hf = LieAlgebra::TransInv(T_bh[leg]) * T_bf[leg]; // from foot pos in torso frame to transform of hip to foot
     Eigen::Vector3d footPosInHipFrame = T_hf.block<3,1>(0,3); // extract the pos of the foot in the hip frame
 
+    if      (footPosInHipFrame.x() < -0.08 ) footPosInHipFrame.x() = -0.08;
+    else if (footPosInHipFrame.x() >  0.065 ) footPosInHipFrame.x() =  0.065;
+    if(leg == FL_m || leg == RL_m){
+        if      (footPosInHipFrame.y() < -0.02) footPosInHipFrame.y() = -0.02;
+        else if (footPosInHipFrame.y() >  0.15 ) footPosInHipFrame.y() =  0.15;}
+    else{
+        if      (footPosInHipFrame.y() < -0.15) footPosInHipFrame.y() = -0.15;
+        else if (footPosInHipFrame.y() >  0.02) footPosInHipFrame.y() =  0.02;}
+    if      (footPosInHipFrame.z() < -0.18 ) footPosInHipFrame.z() = -0.18;
+    else if (footPosInHipFrame.z() > -0.02 ) footPosInHipFrame.z() = -0.02;
+
     LegQuadrant side = (leg == FR_m || leg == RR_m) ? Right : Left;
     
     double angles[NUM_JOINTS];

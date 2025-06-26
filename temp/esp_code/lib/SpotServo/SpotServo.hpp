@@ -6,6 +6,10 @@
 #include "STSCTRL.h"
 // #include <cmath>
 
+#define ENCODER_MID 2047 // Encoder middle value, 0 degrees, 0 radians (encoder resolution is 2^12 = 4096)
+#define DEG_RATIO 0.087912 // One encoder step is 0.087912 degrees (4096/2/180 = 2048/180 = 0.087912)
+#define RAD_RATIO 0.0015340 // One encoder step is 0.0015340 radians (4096/2/180*3.14159 = 2048/180*3.14159 = 0.0015340)
+
 enum LegType {FL, FR, RL, RR};
 enum JointType {Shoulder, Elbow, Wrist};
 
@@ -58,6 +62,8 @@ public:
     /// \returns: motor_pose_est
     double GetPoseEstimate();
 
+    double GetPoseEstimateRad();
+
     /// \brief Return the servo ID
     /// \returns: servo_ID
     int Get_servo_ID();
@@ -100,6 +106,7 @@ private:
     double wait_time = 1.0;
     // motor position offset (due to mechanical fit issues)
     int offset = 0;
+    double offset_rad = 0;
 
     int speed =600;
     int acc = 50;
@@ -118,6 +125,8 @@ private:
     double update_pose = 0.0; // deg this pose is used to not overload the servos with commands, it represents the pose the servo is moving towards.
     double current_pose = 0.0; // deg
     double desired_speed = 0.0; // deg/sec
+
+    double current_pose_rad = 0.0; //rad
 
     // Servo's PWM range (usec)
     int min_pos = 0;

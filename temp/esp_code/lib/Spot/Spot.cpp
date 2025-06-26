@@ -101,10 +101,10 @@ void Spot::move_foot(int leg, Eigen::Vector3d vector){
     model.IK_singular(joint_angles[leg], vector, leg);
 
     double speeds[NUM_JOINTS];
-    double dt = Leg_Joint_Speeds(speeds, joint_angles[leg], leg, STD_SPEED);
+    double dt = Leg_Joint_Speeds_2(speeds, joint_angles[leg], leg, 1.9);
 
     for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
-        Servo_List[leg * 3 + jointIdx].SetGoal(joint_angles[leg][jointIdx] * 180 / M_PI, speeds[jointIdx]);
+        Servo_List[leg * 3 + jointIdx].SetGoal(joint_angles[leg][jointIdx] * 180 / M_PI, speeds[jointIdx]*180/PI); // TODO see how the code use these speeds, even though it says it is deg/s i strongly doubt it.
     }
     Update_Spot(50);
 }
@@ -249,7 +249,7 @@ void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInter
     }   
 }
 
-double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const)
+double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const) //TODo fix this
 {
     double angles_[3] = 
         {angles[0] * 180/PI,
@@ -292,6 +292,43 @@ double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int
     // DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", s_speed, e_speed, w_speed);
 
     return dt_movement;
+}
+
+double Spot::Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, double max_speed){ // max speed in rad/s (TODO make a function description coment)
+    double angles_[3] = 
+        {angles[0],
+         angles[1],
+         angles[2]};
+    
+    DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
+
+    double s_estimate = Servo_List[leg * 3].GetPoseEstimateRad();
+    double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimateRad();
+    double w_estimate = Servo_List[leg * 3 + 2].GetPoseEstimateRad();
+
+    DEBUG_I("s_estimate: %f, e_estimate: %f, w_estimate: %f", s_estimate, e_estimate, w_estimate);
+    
+    double shoulder_dist = abs(angles[0] - s_estimate);
+    double elbow_dist    = abs(angles[1] - e_estimate);
+    double wrist_dist    = abs(angles[2] - w_estimate);
+
+    DEBUG_I("s_dist: %f, e_dist: %f, w_dist: %f", shoulder_dist, elbow_dist, wrist_dist);
+
+    double max_angle = max(shoulder_dist, elbow_dist, wrist_dist);
+
+    DEBUG_I("max_angle: %f", max_angle);
+
+    double time = max_angle / max_speed; // Computes the time taken by the servo with the longgest distance to reach the end position goal
+
+    DEBUG_I("Time: %f = %f / %f", time, max_angle, max_speed);
+
+    speed[0] = shoulder_dist / time;
+    speed[1] = elbow_dist / time;
+    speed[2] = wrist_dist / time;
+
+    DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", speed[0], speed[1], speed[2]);
+
+    return time;
 }
 
 void Spot::getPositionString(char (&PosString)[256], long time)

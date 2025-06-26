@@ -36,7 +36,8 @@ public:
     void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
 
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
-    
+    double Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, double max_speed);
+
     void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
     void move_foot(int leg, Eigen::Vector3d vector);
     void rotate(double row, double pitch, double yaw);

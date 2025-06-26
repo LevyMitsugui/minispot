@@ -172,7 +172,7 @@ double SpotServo::Get_Goal()
 }
 double SpotServo::Get_Goal_Pos_w_Offset()
 {
-	return 2047 + ((goal_pose + offset) / 0.087912);
+	return ENCODER_MID + ((goal_pose + offset) / DEG_RATIO);
 }
 
 double SpotServo::Get_Speed()
@@ -188,7 +188,13 @@ double SpotServo::return_home()
 double SpotServo::GetPoseEstimate()
 {
 	update_position_using_Feedback();
-	return current_pose; //da a posicao que o servo acha que esta
+	return current_pose; //da a posicao que o servo acha que esta em graus
+}
+
+double SpotServo::GetPoseEstimateRad()
+{
+	update_position_using_Feedback();
+	return current_pose_rad; //da a posicao que o servo acha que esta em graus
 }
 
 bool SpotServo::GoalReached()
@@ -234,18 +240,20 @@ void SpotServo::Get_Feedback(float (&speed),float (&load),float (&position))
 	position = posRead[servo_ID];
 }
 
-double PosToDeg(int pos) {
-  return ((pos-2047) * 0.087912);
+double PosToDeg(int pos) { // TODO put it in the class?
+  return ((pos-ENCODER_MID) * DEG_RATIO);
 }
 
+double PosToRad(int pos) {
+  return ((pos-ENCODER_MID) * RAD_RATIO);
+}
 
 void SpotServo::update_position_using_Feedback()
 {
-	// Serial.printf("Servo %d type: %d\n", servo_ID, ServoType[servo_ID]);
 	getPositionFeedback(servo_ID);
 	current_pose = PosToDeg(posRead[servo_ID]) - offset;
-	// DEBUG_I("Servo Init Type: %s,  Servo ID: %d", ((init_type) ? "true" : "false"), servo_ID);
-	// DEBUG_I("posRead: %d,  Current Pose: %f", posRead[servo_ID], current_pose);
+	current_pose_rad = PosToRad(posRead[servo_ID]) - offset_rad;
+	//DEBUG_I("posRead: %d\n", posRead[servo_ID]);
 	//DEBUG_I("Current Pose: %f\n", current_pose);
 }
 

@@ -62,8 +62,6 @@ float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positi
 char inputBuffer[COMMAND_BUFFER_SIZE] = {0};
 int bufferPos = 0;
 
-//TODO fix GetPoseEstimate()
-
 enum CONTROL_STATES
 {
   IDLE,                // 0
@@ -190,13 +188,13 @@ void send_message(const char *msg)
   Serial.write(msg);
 }
 
-void confirm_servos(){ //TODO continue here, have to run this, IDS seems wrong, but we can control the servos normally
+void confirm_servos(){ 
   for(int i = 0; i < 12; i++){
     Serial.print(" Leg: ");
     Serial.print(miniSpot.Servo_List[i].Get_servo_ID());
 
     //miniSpot.Servo_List[i].Get_Feedback(speedShoulder, loadShoulder, positionShoulder);
-    double pos = miniSpot.Servo_List[i].GetPoseEstimate();
+    double pos = miniSpot.Servo_List[i].GetPoseEstimate();// TODO rebase this from degrees to radians
     Serial.print(" Ang: ");
     // Serial.prin(positionShoulder);
     Serial.print(pos);
@@ -216,7 +214,7 @@ void setup()
   RGBcolor(0, 64, 255);
   servoInit();
   
-  boardDevInit();// TODO might cause a crash
+  boardDevInit();
 
   pinMode(LED_PIN, OUTPUT);
   RGBoff(); // TODO probably will be removed

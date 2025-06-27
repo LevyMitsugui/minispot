@@ -33,6 +33,8 @@
 #define PRINT false
 #define COMMAND_BUFFER_SIZE 256
 
+#define STD_SPEED_RAD 0.8 // rad/s
+
 const int nCyclePoints = 19;
 float converted_xyz[NUM_LEGS][nCyclePoints][3];
 
@@ -372,11 +374,11 @@ void loop()
     }
 
     if (move_foot_cmd == 1){ // TODO remove this later #2245
-      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.115));
+      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.115), STD_SPEED_RAD);
       move_foot_cmd = 0;
       stream_control = false;
     } else if (move_foot_cmd == 2) { // TODO remove this later #2245
-      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.145));
+      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.145), STD_SPEED_RAD);
       move_foot_cmd = 0;
       stream_control = false;
     } else if (stream_control){
@@ -386,25 +388,25 @@ void loop()
 
       switch(feet_stream_control.selected){
         case 0:
-          miniSpot.move_foot(0, feet_stream_control.feet_shifts[0]);
+          miniSpot.move_foot(0, feet_stream_control.feet_shifts[0], STD_SPEED_RAD);
           miniSpot.Servo_List[0].GetPoseEstimate();
           miniSpot.Servo_List[1].GetPoseEstimate();
           miniSpot.Servo_List[2].GetPoseEstimate();
           break;
         case 1:
-          miniSpot.move_foot(1, feet_stream_control.feet_shifts[1]);
+          miniSpot.move_foot(1, feet_stream_control.feet_shifts[1], STD_SPEED_RAD);
           miniSpot.Servo_List[3].GetPoseEstimate();
           miniSpot.Servo_List[4].GetPoseEstimate();
           miniSpot.Servo_List[5].GetPoseEstimate();
           break;
         case 2:
-          miniSpot.move_foot(2, feet_stream_control.feet_shifts[2]);
+          miniSpot.move_foot(2, feet_stream_control.feet_shifts[2], STD_SPEED_RAD);
           miniSpot.Servo_List[6].GetPoseEstimate();
           miniSpot.Servo_List[7].GetPoseEstimate();
           miniSpot.Servo_List[8].GetPoseEstimate();
           break;
         case 3:
-          miniSpot.move_foot(3, feet_stream_control.feet_shifts[3]);
+          miniSpot.move_foot(3, feet_stream_control.feet_shifts[3], STD_SPEED_RAD);
           miniSpot.Servo_List[9].GetPoseEstimate();
           miniSpot.Servo_List[10].GetPoseEstimate();
           miniSpot.Servo_List[11].GetPoseEstimate();

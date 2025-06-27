@@ -9,7 +9,8 @@ using namespace std;
 #include <MacroDebugger.h>
 
 
-#define STD_SPEED 450
+#define STD_SPEED 450 // steps/s
+#define STD_SPEED_RAD 0.8 // rad/s
 
 Spot::Spot()
 {
@@ -21,6 +22,13 @@ Spot::Spot()
     model = SpotModel();
     torsoOrientationRPY = Eigen::Vector3d(0, 0, 0); // TODO ideally read the position of the servos and
     torsoPosition = Eigen::Vector3d(0, 0, 0);       // do the direct kinematics and star from there.
+
+    // frame_forward = 0; // TODO remove this
+    // frame_backward = 0;
+    // frame_right = 0;
+    // frame_left = 0;
+    // frame_rotate_right = 0;
+    // frame_rotate_left = 0;
 }
 
 void Spot::Init()
@@ -81,7 +89,7 @@ void Spot::getFootPosition(int leg, Eigen::Vector3d &footPosition){
     footPosition = model.T_bf[leg].block<3,1>(0,3);
 }
 
-void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){
+void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){ // TODO Still using old speed calc
     model.IKFeetOverrides(joint_angles, torsoOrientationRPY, torsoPosition, vectors);
 
     int iterator = 0;
@@ -97,16 +105,17 @@ void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){
     Update_Spot(50);
 }
 
-void Spot::move_foot(int leg, Eigen::Vector3d vector){
+double Spot::move_foot(int leg, Eigen::Vector3d vector, double max_speed){
     model.IK_singular(joint_angles[leg], vector, leg);
 
     double speeds[NUM_JOINTS];
-    double dt = Leg_Joint_Speeds_2(speeds, joint_angles[leg], leg, 1.9);
+    double dt = Leg_Joint_Speeds_2(speeds, joint_angles[leg], leg, max_speed);
 
     for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
-        Servo_List[leg * 3 + jointIdx].SetGoal(joint_angles[leg][jointIdx] * 180 / M_PI, speeds[jointIdx]*180/PI); // TODO see how the code use these speeds, even though it says it is deg/s i strongly doubt it.
+        Servo_List[leg * 3 + jointIdx].SetGoal(joint_angles[leg][jointIdx] * 180 / M_PI, speeds[jointIdx]); // TODO see how the code use these speeds, even though it says it is deg/s i strongly doubt it.
     }
     Update_Spot(50);
+    return dt;
 }
 
 void Spot::rotate(double row, double pitch, double yaw){
@@ -129,7 +138,7 @@ void Spot::pose(Eigen::Vector3d orientation, Eigen::Vector3d position){
     int iterator = 0;
     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
         for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
-            Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, STD_SPEED);
+            Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, STD_SPEED_RAD);
             iterator += 1;
         }
     }
@@ -160,7 +169,7 @@ void Spot::perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], do
             prevTime_us = currentTime_us;
 
             Eigen::Vector3d vecPos(posFrames[frameNumber][0], posFrames[frameNumber][1], posFrames[frameNumber][2]);
-            move_foot(leg, vecPos);
+            move_foot(leg, vecPos, STD_SPEED_RAD);
             frameNumber += 1;
         }
     }
@@ -216,10 +225,10 @@ void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInter
     Eigen::Vector3d vecPos2(posFrames[1][0][0], posFrames[1][0][1], posFrames[1][0][2]);
     Eigen::Vector3d vecPos3(posFrames[2][0][0], posFrames[2][0][1], posFrames[2][0][2]);
     Eigen::Vector3d vecPos4(posFrames[3][0][0], posFrames[3][0][1], posFrames[3][0][2]);
-    move_foot(FL, vecPos1);
-    move_foot(FR, vecPos2);
-    move_foot(RL, vecPos3);
-    move_foot(RR, vecPos4);
+    move_foot(FL, vecPos1, STD_SPEED_RAD);
+    move_foot(FR, vecPos2, STD_SPEED_RAD);
+    move_foot(RL, vecPos3, STD_SPEED_RAD);
+    move_foot(RR, vecPos4, STD_SPEED_RAD);
         
     while (cycle < cycles){
         currentTime_us = micros();
@@ -233,10 +242,10 @@ void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInter
             vecPos2 = Eigen::Vector3d(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
             vecPos3 = Eigen::Vector3d(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
             vecPos4 = Eigen::Vector3d(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
-            move_foot(FL, vecPos1);
-            move_foot(FR, vecPos2);
-            move_foot(RL, vecPos3);
-            move_foot(RR, vecPos4);
+            move_foot(FL, vecPos1, STD_SPEED_RAD);
+            move_foot(FR, vecPos2, STD_SPEED_RAD);
+            move_foot(RL, vecPos3, STD_SPEED_RAD);
+            move_foot(RR, vecPos4, STD_SPEED_RAD);
             
             frameNumber += 1;
         }
@@ -247,6 +256,22 @@ void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInter
         }
         taskYIELD();
     }   
+}
+
+void Spot::perform_gait_no_blocking(float (*posFrames)[19][3], bool is_first_frame){
+    if (is_first_frame){
+        frame = 0;
+        Eigen::Vector3d vecPos1(posFrames[0][0][0], posFrames[0][0][1], posFrames[0][0][2]);
+        Eigen::Vector3d vecPos2(posFrames[1][0][0], posFrames[1][0][1], posFrames[1][0][2]);
+        Eigen::Vector3d vecPos3(posFrames[2][0][0], posFrames[2][0][1], posFrames[2][0][2]);
+        Eigen::Vector3d vecPos4(posFrames[3][0][0], posFrames[3][0][1], posFrames[3][0][2]);
+        move_foot(FL, vecPos1, STD_SPEED_RAD);
+        move_foot(FR, vecPos2, STD_SPEED_RAD);
+        move_foot(RL, vecPos3, STD_SPEED_RAD);
+        move_foot(RR, vecPos4, STD_SPEED_RAD);
+    }
+
+    // TODO continue Here, now move_foot returns the time it will take to finish its movement.
 }
 
 double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const) //TODo fix this

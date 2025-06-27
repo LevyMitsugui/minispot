@@ -34,12 +34,13 @@ public:
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
     void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
+    void perform_gait_no_blocking(float (*posFrames)[19][3], bool reset);
 
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
     double Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, double max_speed);
 
     void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
-    void move_foot(int leg, Eigen::Vector3d vector);
+    double move_foot(int leg, Eigen::Vector3d vector, double max_speed);
     void rotate(double row, double pitch, double yaw);
     void pose(Eigen::Vector3d orientation, Eigen::Vector3d position);
     bool touch_ground(int leg);
@@ -64,6 +65,12 @@ public:
 
 private:
     double max(double a0, double a1, double a2);
+
+    int frame;
+
+    // int frame_forward, frame_backward, // TODO remove this
+    //     frame_right, frame_left,
+    //     frame_rotate_right, frame_rotate_left;
 
     u8 ID[N_SERVOS];
     //SpotModel model;

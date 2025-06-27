@@ -135,7 +135,7 @@ void SpotServo::Initialize(const int & servo_ID_, const double & stand_angle_, c
 	last_actuated = millis();
 }
 
-void SpotServo::SetGoal(const double & goal_pose_, const double & desired_speed_)
+void SpotServo::SetGoal(const double & goal_pose_, const double & desired_speed_) // TODO add coment description, speed is in rad/s
 {
 	goal_pose = goal_pose_;
 	goal_pose += offset;
@@ -149,7 +149,7 @@ void SpotServo::SetGoal(const double & goal_pose_, const double & desired_speed_
 		goal_pose = max_ang;
 	}
 
-	desired_speed = desired_speed_;
+	desired_speed = desired_speed_ * RAD_TO_STEPS_SPEED;
 }
 
 JointType SpotServo::return_joint_type()

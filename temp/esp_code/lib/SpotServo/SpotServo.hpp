@@ -10,6 +10,8 @@
 #define DEG_RATIO 0.087912 // One encoder step is 0.087912 degrees (4096/2/180 = 2048/180 = 0.087912)
 #define RAD_RATIO 0.0015340 // One encoder step is 0.0015340 radians (4096/2/180*3.14159 = 2048/180*3.14159 = 0.0015340)
 
+#define RAD_TO_STEPS_SPEED 652.27436 // from the manual, 50 steps/s = 0.732 rpm = 0.0766549 rad/s. ratio = 50*60/(2*pi*0.732) steps/rad
+
 enum LegType {FL, FR, RL, RR};
 enum JointType {Shoulder, Elbow, Wrist};
 
@@ -124,7 +126,7 @@ private:
     double goal_pose = 0.0; // deg
     double update_pose = 0.0; // deg this pose is used to not overload the servos with commands, it represents the pose the servo is moving towards.
     double current_pose = 0.0; // deg
-    double desired_speed = 0.0; // deg/sec
+    double desired_speed = 0.0; //[edit 2025: motors work with steps/s. this variable is in steps/s]
 
     double current_pose_rad = 0.0; //rad
 

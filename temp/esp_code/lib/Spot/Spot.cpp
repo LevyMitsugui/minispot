@@ -11,6 +11,7 @@ using namespace std;
 
 #define STD_SPEED 450 // steps/s
 #define STD_SPEED_RAD 0.8 // rad/s
+#define SPEED_LAST_EDITION 0.02//1.149822906 // 2.299645812 // rad/s
 
 Spot::Spot()
 {
@@ -175,45 +176,6 @@ void Spot::perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], do
     }
 }
 
-// void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles){
-//     double currentTime_us = micros();
-//     double prevTime_us = currentTime_us;
-//     double dt = 0.0;
-//     int frameNumber;
-
-//     Eigen::Vector3d vecPos1(posFrames[0][frameNumber][0], posFrames[0][frameNumber][1], posFrames[0][frameNumber][2]);
-//     Eigen::Vector3d vecPos2(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
-//     Eigen::Vector3d vecPos3(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
-//     Eigen::Vector3d vecPos4(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
-//     move_foot(FL, vecPos1);
-//     move_foot(FR, vecPos2);
-//     move_foot(RL, vecPos3);
-//     move_foot(RR, vecPos4);
-
-//     for (int i = 0; i < cycles; i++){
-//         frameNumber = 1;
-//         while (frameNumber < nFrames){
-//             currentTime_us = micros();
-//             dt = currentTime_us - prevTime_us;
-//             //DEBUG_I("current: %f, Previous : %f, dt: %f", currentTime_us, prevTime_us, dt);
-//             if(dt > timeInterval_us){
-//                 prevTime_us = currentTime_us;
-
-//                 vecPos1 = Eigen::Vector3d(posFrames[0][frameNumber][0], posFrames[0][frameNumber][1], posFrames[0][frameNumber][2]);
-//                 vecPos2 = Eigen::Vector3d(posFrames[1][frameNumber][0], posFrames[1][frameNumber][1], posFrames[1][frameNumber][2]);
-//                 vecPos3 = Eigen::Vector3d(posFrames[2][frameNumber][0], posFrames[2][frameNumber][1], posFrames[2][frameNumber][2]);
-//                 vecPos4 = Eigen::Vector3d(posFrames[3][frameNumber][0], posFrames[3][frameNumber][1], posFrames[3][frameNumber][2]);
-//                 move_foot(FL, vecPos1);
-//                 move_foot(FR, vecPos2);
-//                 move_foot(RL, vecPos3);
-//                 move_foot(RR, vecPos4);
-                
-//                 frameNumber += 1;
-//             }
-//         }   
-//     }
-// }
-
 void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles){
     double currentTime_us = micros();
     double prevTime_us = currentTime_us;
@@ -259,19 +221,49 @@ void Spot::perform_gait(int nFrames, float (*posFrames)[19][3], double timeInter
 }
 
 void Spot::perform_gait_no_blocking(float (*posFrames)[19][3], bool is_first_frame){
+    double currentTime = millis();
+    double dt = timeHelper[1]; // timeHelper[1] will act as the time to finish the last frame (in milliseconds)
+    double dt_ = 0.0;
+    DEBUG_I("Current Frame: %d", frame);
+    DEBUG_I("To next Frame: %f / %f", (currentTime - timeHelper[0]), dt);
+
     if (is_first_frame){
-        frame = 0;
+        timeHelper[0] = currentTime; // timeHelper[0] will act as the previous time variable
+        frame = 1;
         Eigen::Vector3d vecPos1(posFrames[0][0][0], posFrames[0][0][1], posFrames[0][0][2]);
         Eigen::Vector3d vecPos2(posFrames[1][0][0], posFrames[1][0][1], posFrames[1][0][2]);
         Eigen::Vector3d vecPos3(posFrames[2][0][0], posFrames[2][0][1], posFrames[2][0][2]);
         Eigen::Vector3d vecPos4(posFrames[3][0][0], posFrames[3][0][1], posFrames[3][0][2]);
-        move_foot(FL, vecPos1, STD_SPEED_RAD);
-        move_foot(FR, vecPos2, STD_SPEED_RAD);
-        move_foot(RL, vecPos3, STD_SPEED_RAD);
-        move_foot(RR, vecPos4, STD_SPEED_RAD);
-    }
+        dt = move_foot(FL, vecPos1, SPEED_LAST_EDITION); // dt in seconds!!!
+        dt_ = move_foot(FR, vecPos2, SPEED_LAST_EDITION);
+        dt = (dt > dt_) ? dt : dt_;
+        dt_ = move_foot(RL, vecPos3, SPEED_LAST_EDITION);
+        dt = (dt > dt_) ? dt : dt_;
+        dt_ = move_foot(RR, vecPos4, SPEED_LAST_EDITION);
+        dt = (dt > dt_) ? dt : dt_;
+        DEBUG_I("dt : %f seconds", dt);
+        timeHelper[1] = dt*1000; // convert it to milliseconds
+        DEBUG_I("timeHelper[1]: %f milliseconds", timeHelper[1]);
 
-    // TODO continue Here, now move_foot returns the time it will take to finish its movement.
+    } else if (frame < 19 && (currentTime - timeHelper[0]) > dt){
+        timeHelper[0] = currentTime;
+        Eigen::Vector3d vecPos1(posFrames[0][frame][0], posFrames[0][frame][1], posFrames[0][frame][2]);
+        Eigen::Vector3d vecPos2(posFrames[1][frame][0], posFrames[1][frame][1], posFrames[1][frame][2]);
+        Eigen::Vector3d vecPos3(posFrames[2][frame][0], posFrames[2][frame][1], posFrames[2][frame][2]);
+        Eigen::Vector3d vecPos4(posFrames[3][frame][0], posFrames[3][frame][1], posFrames[3][frame][2]);
+        dt = move_foot(FL, vecPos1, SPEED_LAST_EDITION); // dt in seconds!!!
+        dt_ = move_foot(FR, vecPos2, SPEED_LAST_EDITION);
+        dt = (dt > dt_) ? dt : dt_;
+        dt_ = move_foot(RL, vecPos3, SPEED_LAST_EDITION);
+        dt = (dt > dt_) ? dt : dt_;
+        dt_ = move_foot(RR, vecPos4, SPEED_LAST_EDITION);
+        dt = (dt > dt_) ? dt : dt_;
+        DEBUG_I("dt : %f seconds", dt);
+        timeHelper[1] = dt*1000; // convert it to milliseconds
+        DEBUG_I("timeHelper[1]: %f milliseconds", timeHelper[1]);
+        frame = (frame >= 17) ? 1 : frame + 1;
+        DEBUG_I("Next Frame: %d", frame);
+    }
 }
 
 double Spot::Leg_Joint_Speeds(double (&speed)[3], double angles[3], int leg, int speed_const) //TODo fix this
@@ -325,35 +317,35 @@ double Spot::Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, d
          angles[1],
          angles[2]};
     
-    DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
+    // DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
 
     double s_estimate = Servo_List[leg * 3].GetPoseEstimateRad();
     double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimateRad();
     double w_estimate = Servo_List[leg * 3 + 2].GetPoseEstimateRad();
 
-    DEBUG_I("s_estimate: %f, e_estimate: %f, w_estimate: %f", s_estimate, e_estimate, w_estimate);
+    // DEBUG_I("s_estimate: %f, e_estimate: %f, w_estimate: %f", s_estimate, e_estimate, w_estimate);
     
     double shoulder_dist = abs(angles[0] - s_estimate);
     double elbow_dist    = abs(angles[1] - e_estimate);
     double wrist_dist    = abs(angles[2] - w_estimate);
 
-    DEBUG_I("s_dist: %f, e_dist: %f, w_dist: %f", shoulder_dist, elbow_dist, wrist_dist);
+    // DEBUG_I("s_dist: %f, e_dist: %f, w_dist: %f", shoulder_dist, elbow_dist, wrist_dist);
 
     double max_angle = max(shoulder_dist, elbow_dist, wrist_dist);
 
-    DEBUG_I("max_angle: %f", max_angle);
+    // DEBUG_I("max_angle: %f", max_angle);
 
     double time = max_angle / max_speed; // Computes the time taken by the servo with the longgest distance to reach the end position goal
 
-    DEBUG_I("Time: %f = %f / %f", time, max_angle, max_speed);
+    // DEBUG_I("Time: %f = %f / %f", time, max_angle, max_speed);
 
     speed[0] = shoulder_dist / time;
     speed[1] = elbow_dist / time;
     speed[2] = wrist_dist / time;
 
-    DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", speed[0], speed[1], speed[2]);
+    // DEBUG_I("s_speed: %f  e_speed: %f  w_speed: %f", speed[0], speed[1], speed[2]);
 
-    return time;
+    return time; // time in seconds
 }
 
 void Spot::getPositionString(char (&PosString)[256], long time)

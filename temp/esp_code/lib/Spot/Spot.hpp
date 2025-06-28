@@ -34,7 +34,7 @@ public:
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
     void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
-    void perform_gait_no_blocking(float (*posFrames)[19][3], bool reset);
+    void perform_gait_no_blocking(float (*posFrames)[19][3], bool is_first_frame);
 
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
     double Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, double max_speed);
@@ -63,11 +63,16 @@ public:
 
     SpotModel model;
 
+    
+    double timeHelper[4];  // To be used inside functions that require time memory between cycles
+    
+
 private:
     double max(double a0, double a1, double a2);
 
     int frame;
-
+    // double timeHelper[4];  // To be used inside functions that require time memory between cycles
+    
     // int frame_forward, frame_backward, // TODO remove this
     //     frame_right, frame_left,
     //     frame_rotate_right, frame_rotate_left;

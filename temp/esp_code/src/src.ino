@@ -81,7 +81,9 @@ enum CONTROL_STATES
   GAIT_RIGHT,          // 11
   GAIT_LEFT,           // 12
   GAIT_ROTATE_RIGHT,   // 13
-  GAIT_ROTATE_LEFT     // 14  
+  GAIT_ROTATE_LEFT,    // 14 
+  NO_BLOCKING_TEST,    // 15
+  TEST_TIME            // 16
 };
 
 enum SERVOS_CONTROL_IDX
@@ -152,6 +154,9 @@ void test_task(void *pvParameters) {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 }
+
+bool gait_no_blocking_test = false;
+bool test_time = false;
 
 // ----------------------------------------------------
 
@@ -266,6 +271,17 @@ void loop()
   if(current_time - last_time > cycle_time){
     last_time = current_time;
     
+    if (gait_no_blocking_test){
+      miniSpot.perform_gait_no_blocking(gait_forward, false);
+    }
+
+    if (test_time){
+      if ((millis() - miniSpot.timeHelper[0])> miniSpot.timeHelper[1]){
+        DEBUG_I("TIME IS DONE: %f", miniSpot.timeHelper[0]);
+        test_time = false;
+      }
+    }
+
     if (pi_command.new_command){    
       pi_command.new_command = false;
       DEBUG_I("Command: %d", pi_command.command);
@@ -338,7 +354,7 @@ void loop()
       case GAIT_BACKWARD:
         DEBUG_I("GAIT_BACKWARD");
         //miniSpot.perform_gait( nCyclePoints, gait_backward, 120000.0, 5);
-        miniSpot.perform_gait( nCyclePoints, gait_backward, 600000.0, 5);
+        miniSpot.perform_gait( nCyclePoints, gait_backward, 150000.0, 5);
         break;
 
       case GAIT_RIGHT:
@@ -361,6 +377,22 @@ void loop()
         miniSpot.perform_gait( nCyclePoints, gait_rotate_left, 190000.0, 5);
         break;
       
+      case NO_BLOCKING_TEST:
+        DEBUG_I("NO_BLOCKING_TEST");
+        gait_no_blocking_test = !gait_no_blocking_test;
+        miniSpot.perform_gait_no_blocking(gait_forward, true);
+        break;
+
+      case TEST_TIME:
+        if (!test_time){
+          miniSpot.timeHelper[1] = miniSpot.move_foot(FL, Eigen::Vector3d(0.13525, 0.135, -0.095), 0.2) * 1000;
+          miniSpot.timeHelper[0] = millis();
+          DEBUG_I("START TIME: %f", miniSpot.timeHelper[0]);
+          DEBUG_I("DELTA TIME: %f", miniSpot.timeHelper[1]);
+          test_time = true;
+        }
+        break;
+
       case TOGGLE_LOG:
         if (log_toggle){
           Serial.println("ESP/LOG:Log:true");

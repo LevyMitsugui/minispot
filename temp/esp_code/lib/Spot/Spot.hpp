@@ -50,11 +50,13 @@ public:
     void straight_calibration_stance();
     void prone_calibration_stance();
 
+    // - - - Testing Space - - -
+    void measure_speed();
+    // - - - - - - - - - - - - -
 
     SpotServo Servo_List[N_SERVOS];
     double Mem_Agnles[N_SERVOS];
 
-    
     double joint_angles[NUM_LEGS][NUM_JOINTS];
     Eigen::Vector3d torsoOrientationRPY;
     Eigen::Vector3d torsoPosition;

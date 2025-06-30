@@ -11,7 +11,7 @@ using namespace std;
 
 #define STD_SPEED 450 // steps/s
 #define STD_SPEED_RAD 0.8 // rad/s
-#define SPEED_LAST_EDITION 0.02//1.149822906 // 2.299645812 // rad/s
+#define SPEED_LAST_EDITION 2.299645812 //0.02 //1.149822906 // 2.299645812 // rad/s
 
 Spot::Spot()
 {
@@ -348,6 +348,128 @@ double Spot::Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, d
     return time; // time in seconds
 }
 
+// - - - Testing Space - - -
+#define TESTING_SPEED (1500 / RAD_TO_STEPS_SPEED)
+void Spot::measure_speed(){ // TODO try to avoid the acceleration part
+    double currentTime = millis();
+    double prevTime = currentTime;
+    double time, graph_time, speed;
+    double startPos, endPos, prevPos, currentPos;
+    
+    Servo_List[0].SetGoal(0.0, TESTING_SPEED);
+    Servo_List[1].SetGoal(-90.0, TESTING_SPEED);
+    Servo_List[2].SetGoal(120.0, TESTING_SPEED);
+    Update_Spot(0);
+    while (!all_goals_reached()){
+    }
+    delay(1000);
+    
+    startPos = Servo_List[2].GetPoseEstimate();
+    prevPos = startPos;
+    Servo_List[2].SetGoal(60.0, TESTING_SPEED);
+    Update_Spot(0);
+    prevTime = millis();
+    graph_time = prevTime;
+    while (!all_goals_reached()){
+        time = millis();
+        // currentPos = Servo_List[2].GetPoseEstimate();
+        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
+        // prevPos = currentPos;
+        // graph_time = time;
+    }
+    endPos = Servo_List[2].GetPoseEstimate();
+    DEBUG_I("\n");
+    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
+    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
+    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
+    DEBUG_I("Speed rad/s: %f", speed);
+    delay(1000);
+
+    startPos = Servo_List[2].GetPoseEstimate();
+    prevPos = startPos;
+    Servo_List[2].SetGoal(120.0, TESTING_SPEED);
+    Update_Spot(0);
+    prevTime = millis();
+    graph_time = prevTime;
+    while (!all_goals_reached()){
+        time = millis();
+        // currentPos = Servo_List[2].GetPoseEstimate();
+        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
+        // prevPos = currentPos;
+        // graph_time = time;
+    }
+    endPos = Servo_List[2].GetPoseEstimate();
+    DEBUG_I("\n");
+    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
+    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
+    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
+    DEBUG_I("Speed rad/s: %f", speed);
+    delay(1000);
+
+    startPos = Servo_List[1].GetPoseEstimate();
+    prevPos = startPos;
+    Servo_List[1].SetGoal(90.0, TESTING_SPEED);
+    Update_Spot(0);
+    prevTime = millis();
+    graph_time = prevTime;
+    while (!all_goals_reached()){
+        time = millis();
+        // currentPos = Servo_List[1].GetPoseEstimate();
+        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
+        // prevPos = currentPos;
+        // graph_time = time;
+    }
+    endPos = Servo_List[1].GetPoseEstimate();
+    DEBUG_I("\n");
+    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
+    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
+    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
+    DEBUG_I("Speed rad/s: %f", speed);
+    delay(1000);
+
+    startPos = Servo_List[1].GetPoseEstimate();
+    prevPos = startPos;
+    Servo_List[1].SetGoal(-90.0, TESTING_SPEED);
+    Update_Spot(0);
+    prevTime = millis();
+    graph_time = prevTime;
+    while (!all_goals_reached()){
+        time = millis();
+        // currentPos = Servo_List[1].GetPoseEstimate();
+        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
+        // prevPos = currentPos;
+        // graph_time = time;
+    }
+    endPos = Servo_List[1].GetPoseEstimate();
+    DEBUG_I("\n");
+    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
+    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
+    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
+    DEBUG_I("Speed rad/s: %f", speed);
+    delay(1000);
+
+    startPos = Servo_List[1].GetPoseEstimate();
+    prevPos = startPos;
+    Servo_List[1].SetGoal(0.0, TESTING_SPEED);
+    Update_Spot(0);
+    prevTime = millis();
+    graph_time = prevTime;
+    while (!all_goals_reached()){
+        time = millis();
+        currentPos = Servo_List[1].GetPoseEstimate();
+        DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
+        prevPos = currentPos;
+        graph_time = time;
+    }
+    endPos = Servo_List[1].GetPoseEstimate();
+    DEBUG_I("\n");
+    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
+    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
+    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
+    DEBUG_I("Speed rad/s: %f", speed);
+}
+// - - - - - - - - - - - - -
+
 void Spot::getPositionString(char (&PosString)[256], long time)
 {
     memset(PosString, 0, 256);
@@ -402,16 +524,16 @@ void Spot::set_stance_wspeed(const double &l_shoulder_stance, const double &l_el
 {
     float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
 
-    Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+    Servo_List[FL_SHOULDER].SetGoal(l_shoulder_stance, speed);
     Servo_List[FL_ELBOW].SetGoal(l_elbow_stance, speed);
     Servo_List[FL_WRIST].SetGoal(l_wrist_stance, speed);
-    Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+    Servo_List[FR_SHOULDER].SetGoal(r_shoulder_stance, speed);
     Servo_List[FR_ELBOW].SetGoal(r_elbow_stance, speed);
     Servo_List[FR_WRIST].SetGoal(r_wrist_stance, speed);
-    Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, 500);
+    Servo_List[RL_SHOULDER].SetGoal(l_shoulder_stance, speed);
     Servo_List[RL_ELBOW].SetGoal(l_elbow_stance, speed);
     Servo_List[RL_WRIST].SetGoal(l_wrist_stance, speed);
-    Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, 500);
+    Servo_List[RR_SHOULDER].SetGoal(r_shoulder_stance, speed);
     Servo_List[RR_ELBOW].SetGoal(r_elbow_stance, speed);
     Servo_List[RR_WRIST].SetGoal(r_wrist_stance, speed);
 
@@ -421,7 +543,7 @@ void Spot::set_stance_wspeed(const double &l_shoulder_stance, const double &l_el
 void Spot::straight_calibration_stance()
 {
     // set_stance(0,0,0,0,0,0);
-    double speed = 500.0;
+    double speed = STD_SPEED_RAD;
     set_stance_wspeed(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, speed);
 }
 
@@ -433,7 +555,7 @@ void Spot::prone_calibration_stance()
     double Right_shoulder_stance = 0.0;
     double Right_elbow_stance = 90.0;
     double Right_wrist_stance = -120.0;
-    double speed = 500.0;
+    double speed = STD_SPEED_RAD;
     // set_stance(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance);
     set_stance_wspeed(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance, speed);
 }
@@ -454,5 +576,3 @@ double Spot::max(double a0, double a1, double a2)
     }
     return 0;
 }
-
-// TODO add inverse kinematics

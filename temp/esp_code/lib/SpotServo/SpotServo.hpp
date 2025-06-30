@@ -10,7 +10,8 @@
 #define DEG_RATIO 0.087912 // One encoder step is 0.087912 degrees (4096/2/180 = 2048/180 = 0.087912)
 #define RAD_RATIO 0.0015340 // One encoder step is 0.0015340 radians (4096/2/180*3.14159 = 2048/180*3.14159 = 0.0015340)
 
-#define RAD_TO_STEPS_SPEED 652.27436 // from the manual, 50 steps/s = 0.732 rpm = 0.0766549 rad/s. ratio = 50*60/(2*pi*0.732) steps/rad
+//#define RAD_TO_STEPS_SPEED 652.27436 // from the manual, 50 steps/s = 0.732 rpm = 0.0766549 rad/s. ratio = 50*60/(2*pi*0.732) steps/rad
+#define RAD_TO_STEPS_SPEED 735.29412 // I did some measurements and experiments to get this value, 1500 steps/s more equivalent to 2.04 rad/s
 
 enum LegType {FL, FR, RL, RR};
 enum JointType {Shoulder, Elbow, Wrist};

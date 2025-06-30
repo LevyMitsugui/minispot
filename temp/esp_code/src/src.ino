@@ -272,7 +272,7 @@ void loop()
     last_time = current_time;
     
     if (gait_no_blocking_test){
-      miniSpot.perform_gait_no_blocking(gait_forward, false);
+      miniSpot.perform_gait_no_blocking(gait_rotate_right, false);
     }
 
     if (test_time){
@@ -380,17 +380,18 @@ void loop()
       case NO_BLOCKING_TEST:
         DEBUG_I("NO_BLOCKING_TEST");
         gait_no_blocking_test = !gait_no_blocking_test;
-        miniSpot.perform_gait_no_blocking(gait_forward, true);
+        miniSpot.perform_gait_no_blocking(gait_rotate_right, true);
         break;
 
       case TEST_TIME:
-        if (!test_time){
-          miniSpot.timeHelper[1] = miniSpot.move_foot(FL, Eigen::Vector3d(0.13525, 0.135, -0.095), 0.2) * 1000;
-          miniSpot.timeHelper[0] = millis();
-          DEBUG_I("START TIME: %f", miniSpot.timeHelper[0]);
-          DEBUG_I("DELTA TIME: %f", miniSpot.timeHelper[1]);
-          test_time = true;
-        }
+        // if (!test_time){
+        //   miniSpot.timeHelper[1] = miniSpot.move_foot(FL, Eigen::Vector3d(0.13525, 0.135, -0.095), 0.2) * 1000;
+        //   miniSpot.timeHelper[0] = millis();
+        //   DEBUG_I("START TIME: %f", miniSpot.timeHelper[0]);
+        //   DEBUG_I("DELTA TIME: %f", miniSpot.timeHelper[1]);
+        //   test_time = true;
+        // }
+        miniSpot.measure_speed();
         break;
 
       case TOGGLE_LOG:

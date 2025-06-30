@@ -41,6 +41,8 @@ public:
 
     void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
     double move_foot(int leg, Eigen::Vector3d vector, double max_speed);
+
+    void translate(double x, double y, double z);
     void rotate(double row, double pitch, double yaw);
     void pose(Eigen::Vector3d orientation, Eigen::Vector3d position);
     bool touch_ground(int leg);

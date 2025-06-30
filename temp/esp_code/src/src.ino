@@ -143,8 +143,7 @@ double dt_movement = 0.0;
 
 bool SERIAL_FORWARDING = false;
 
-int move_foot_cmd = 0; // TODO remove later, only used for testing #2254
-bool printLoads = false; // TODO remoce later. #1137
+bool printLoads = false; // TODO remove later. #1137
 
 
 
@@ -406,15 +405,7 @@ void loop()
       }
     }
 
-    if (move_foot_cmd == 1){ // TODO remove this later #2245
-      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.115), STD_SPEED_RAD);
-      move_foot_cmd = 0;
-      stream_control = false;
-    } else if (move_foot_cmd == 2) { // TODO remove this later #2245
-      miniSpot.move_foot(feet_stream_control.selected, Eigen::Vector3d(0.0925, 0.085, -0.145), STD_SPEED_RAD);
-      move_foot_cmd = 0;
-      stream_control = false;
-    } else if (stream_control){
+    if (stream_control){
       stream_control = false;
 
       //miniSpot.move_feet(feet_stream_control.feet_shifts);
@@ -447,6 +438,9 @@ void loop()
         case 4:
           miniSpot.rotate(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.y());
           break;
+        
+        case 5:
+          miniSpot.translate(feet_stream_control.body_translation.x(), feet_stream_control.body_translation.y(), feet_stream_control.body_translation.z());
       }
       if (feet_stream_control.selected <4) printFootPos(feet_stream_control.selected);
       miniSpot.getLoads();
@@ -537,6 +531,8 @@ bool process_stream_control(char c)
   case '5':
     feet_stream_control.selected = 4;
     break;
+  case '6':
+    feet_stream_control.selected = 5;
   case 'i':
     if (feet_stream_control.selected < 4)
       feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() + feet_stream_control.step;
@@ -573,14 +569,26 @@ bool process_stream_control(char c)
     else if (feet_stream_control.selected == 4)
       feet_stream_control.body_orientation.z() -= feet_stream_control.step;
     break;
+  case 'r':
+    feet_stream_control.body_translation.x() = feet_stream_control.body_translation.x() + feet_stream_control.step;
+    break;
+  case 'f':
+    feet_stream_control.body_translation.x() = feet_stream_control.body_translation.x() - feet_stream_control.step;
+    break;
+  case 'd':
+    feet_stream_control.body_translation.y() = feet_stream_control.body_translation.y() + feet_stream_control.step;
+    break;
+  case 'g':
+    feet_stream_control.body_translation.y() = feet_stream_control.body_translation.y() - feet_stream_control.step;
+    break;
+  case 'e':
+    feet_stream_control.body_translation.z() = feet_stream_control.body_translation.z() + feet_stream_control.step;
+    break;
+  case 't':
+    feet_stream_control.body_translation.z() = feet_stream_control.body_translation.z() - feet_stream_control.step;
+    break;
   case 'p':
     confirm_servos();
-    break;
-  case 'h':
-    move_foot_cmd = 1; // TODO remove later [tag #2254] (use ctrl+f to find parent)
-    break;
-  case 'y':
-    move_foot_cmd = 2; // TODO remove later [tag #2254] (use ctrl+f to find parent)
     break;
   default:
     break;

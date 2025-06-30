@@ -90,7 +90,7 @@ void Spot::getFootPosition(int leg, Eigen::Vector3d &footPosition){
     footPosition = model.T_bf[leg].block<3,1>(0,3);
 }
 
-void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){ // TODO Still using old speed calc
+void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){ // TODO Still using old IK and old speed calc
     model.IKFeetOverrides(joint_angles, torsoOrientationRPY, torsoPosition, vectors);
 
     int iterator = 0;
@@ -119,19 +119,56 @@ double Spot::move_foot(int leg, Eigen::Vector3d vector, double max_speed){
     return dt;
 }
 
-void Spot::rotate(double row, double pitch, double yaw){
-    DEBUG_I("row: %f, pitch: %f, yaw: %f", row, pitch, yaw);
-    torsoOrientationRPY = Eigen::Vector3d(row, pitch, yaw);
-    model.rotateBody(joint_angles, torsoOrientationRPY);
+void Spot::translate(double x, double y, double z){
+    DEBUG_I("x: %f, y: %f, z: %f", x, y, z);
+    torsoPosition = Eigen::Vector3d(x, y, z);
+    model.ComputeJointAnglesFromTranslation(joint_angles, torsoPosition);
+
+    double speeds[NUM_JOINTS];
+    double dt = 0;
 
     int iterator = 0;
     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
         for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
-            //Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, STD_SPEED);
+            Leg_Joint_Speeds_2(speeds, joint_angles[legIdx], legIdx, 0.2);
+            Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, speeds[jointIdx]);
             iterator += 1;
         }
     }
-    //Update_Spot(50);
+    Update_Spot(50);
+}
+
+// void Spot::rotate(double row, double pitch, double yaw){
+//     DEBUG_I("row: %f, pitch: %f, yaw: %f", row, pitch, yaw);
+//     torsoOrientationRPY = Eigen::Vector3d(row, pitch, yaw);
+//     model.rotateBody(joint_angles, torsoOrientationRPY);
+
+//     int iterator = 0;
+//     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
+//         for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
+//             Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, 0.2);
+//             iterator += 1;
+//         }
+//     }
+//     Update_Spot(50);
+// }
+
+void Spot::rotate(double row, double pitch, double yaw){
+    DEBUG_I("row: %f, pitch: %f, yaw: %f", row, pitch, yaw);
+    torsoOrientationRPY = Eigen::Vector3d(row, pitch, yaw);
+    model.ComputeJointAnglesFromRotation(joint_angles, torsoOrientationRPY);
+
+    double speeds[NUM_JOINTS];
+
+    int iterator = 0;
+    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
+        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
+            Leg_Joint_Speeds_2(speeds, joint_angles[legIdx], legIdx, 0.2);
+            Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, speeds[jointIdx]);
+            iterator += 1;
+        }
+    }
+    Update_Spot(50);
 }
 
 void Spot::pose(Eigen::Vector3d orientation, Eigen::Vector3d position){

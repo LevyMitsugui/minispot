@@ -59,6 +59,14 @@ public:
         int leg, 
         Eigen::Vector3d& footPosition);
 
+    void ComputeJointAnglesFromTranslation(
+        double jointAngles[NUM_LEGS][NUM_JOINTS],
+        const Eigen::Vector3d& bodyPosition);
+
+    void ComputeJointAnglesFromRotation(
+        double jointAngles[NUM_LEGS][NUM_JOINTS],
+        const Eigen::Vector3d& bodyOrientationRPY);
+
     /**
      * \brief Apply transforms to the FEET so the body performs a rotation
      */
@@ -75,6 +83,13 @@ public:
 
     Eigen::Matrix4d T_bh[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each shoulder joint
     Eigen::Matrix4d T_bf[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each foot
+    
+    // TODO create measured values for this using pos feedback and forward kinematics
+    // Eigen::Matrix4d T_bf_real[NUM_LEGS]; // body to feet
+
+    // TODO create measured values for this using IMU
+    //Eigen::Matrix4d T_wb_real[NUM_LEGS]; // world to body
+    
     Kinematics Legs[NUM_LEGS];
     
 private:

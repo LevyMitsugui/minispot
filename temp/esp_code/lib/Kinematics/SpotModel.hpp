@@ -21,7 +21,7 @@ public:
               double hip_x = 0.185,
               double hip_y = 0.077,
               double foot_x = 0.185,
-              double foot_y = 0.17,
+              double foot_y = 0.17,//0.077,
               double height = 0.145);
 
     void HipToFeet(

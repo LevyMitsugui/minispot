@@ -2,6 +2,7 @@
 #include <SCServo.h>
 #include "STSCTRL.h"
 #include "Spot.hpp"
+#include "GaitGen.hpp"
 #include <algorithm>
 using namespace std;
 
@@ -13,7 +14,6 @@ using namespace std;
 #define STD_SPEED_RAD 0.8 // rad/s
 #define SPEED_LAST_EDITION 30 //0.02 //1.149822906 // 2.299645812 // rad/s
 
-
 Spot::Spot()
 {
     Init_Servos();
@@ -22,6 +22,7 @@ Spot::Spot()
         ID[i] = Servo_List[i].Get_servo_ID();
     }
     model = SpotModel();
+    gaitGen = GaitGen();
     torsoOrientationRPY = Eigen::Vector3d(0, 0, 0); // TODO ideally read the position of the servos and
     torsoPosition = Eigen::Vector3d(0, 0, 0);       // do the direct kinematics and star from there.
 
@@ -39,7 +40,7 @@ void Spot::Init()
     {
         this->Servo_List[i].Init();
     }
-
+    gaitGen.Init(this->model);
     pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
 }
 
@@ -87,8 +88,8 @@ bool Spot::all_goals_reached()
 
 }
 
-void Spot::getFootPosition(int leg, Eigen::Vector3d &footPosition){
-    footPosition = model.T_bf[leg].block<3,1>(0,3);
+Eigen::Vector3d Spot::getFootPosition(int leg){
+    return model.T_bf[leg].block<3,1>(0,3);
 }
 
 void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){ // TODO Still using old IK and old speed calc
@@ -387,6 +388,26 @@ double Spot::Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, d
 }
 
 // - - - Testing Space - - -
+void Spot::testGaitGen(){
+    double t_swing = 0.0;
+    Eigen::Vector3d swingPos;
+    Eigen::Vector3d bezierPoints[4] = 
+        {Eigen::Vector3d(0.0,0.0,0.0),
+        Eigen::Vector3d(0.0,0.0,0.06),
+        Eigen::Vector3d(0.08,0.0,0.06),
+        Eigen::Vector3d(0.05,0.0,0.0)};
+    
+    int numSteps = 10;
+    Eigen::Vector3d bezPoint;
+    
+    for(int i = 0; i < numSteps; i++){
+        bezPoint = gaitGen.bezier((1/numSteps)*i, bezierPoints[0], bezierPoints[1], bezierPoints[2], bezierPoints[3]);
+        DEBUG_I("%f,%f,%f", bezPoint[1], bezPoint[2], bezPoint[3]);
+    }
+}
+
+
+
 #define TESTING_SPEED (1500 / RAD_TO_STEPS_SPEED)
 void Spot::measure_speed(){ // TODO try to avoid the acceleration part
     double currentTime = millis();

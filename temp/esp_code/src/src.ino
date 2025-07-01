@@ -3,7 +3,6 @@
 #include <Kinematics.hpp>
 #include "SpotServo.hpp"
 #include <Utilities.hpp>
-#include "Spot.hpp"
 #include <cstring>
 #include "Arduino.h"
 #include "SerialHandler.hpp"
@@ -26,9 +25,11 @@
 // ----------------- ADAPT VARIABLES ------------------
 
 #include <ArduinoEigen.h>
+#include "Spot.hpp"
 #include "Kinematics.hpp"
 #include "SpotModel.hpp"
 #include "LieAlgebra.hpp"
+#include "GaitGen.hpp"
 
 #define PRINT false
 #define COMMAND_BUFFER_SIZE 256
@@ -127,7 +128,7 @@ bool stream_control = false;
 SerialHandler serialHandler = SerialHandler(false, '>');
 Spot miniSpot = Spot();
 
-SpotModel model = SpotModel();
+//SpotModel model = SpotModel();
 int iterator = 0;
 Eigen::Vector3d orn(0, 0, 0); // roll, pitch, yaw
 Eigen::Vector3d pos(0, 0, 0); // body position
@@ -157,6 +158,20 @@ void test_task(void *pvParameters) {
 bool gait_no_blocking_test = false;
 bool test_time = false;
 
+//GaitGen gaitGen = GaitGen();
+double t_swing = 0.0;
+Eigen::Vector3d swingPos;
+Eigen::Vector3d bezierPoints[4] = 
+    {Eigen::Vector3d(0.0,0.0,0.0),
+    Eigen::Vector3d(0.0,0.0,0.06),
+    Eigen::Vector3d(0.08,0.0,0.06),
+    Eigen::Vector3d(0.05,0.0,0.0)};
+
+Eigen::Vector3d startingPoint;
+double bezCurrTime = millis();
+double bezPrevTime = bezCurrTime;
+double bezPeriodTime = 0;
+Eigen::Vector3d points_bf [4];
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -210,6 +225,31 @@ void confirm_servos(){
   Serial.println();
 }
 
+// void performBezier(int Leg, double &bezierTime, double timeIncrement, Eigen::Vector3d bezierPoints[4]){
+ 
+//   if (bezierTime < timeIncrement) {
+//     startingPoint = miniSpot.model.T_bf[Leg].block<3,1>(0,3);
+//     DEBUG_I("sX: %f, sY: %f, sZ: %f", startingPoint[0], startingPoint[1], startingPoint[2]);
+
+//     for(int i=0; i<4; i++){
+//       points_bf[i] = startingPoint + bezierPoints[i];
+//       DEBUG_I("points_bf[%d]: %f, %f, %f", i,points_bf[i][0], points_bf[i][1],points_bf[i][2]);
+//     }
+//   }
+
+//   bezCurrTime = millis();
+//   double dt = bezCurrTime - bezPrevTime;
+//   if (dt > bezPeriodTime){
+//     bezPrevTime = bezCurrTime;
+//     Eigen::Vector3d bodyToFootPosBezier = gaitGen.bezier(bezierTime, points_bf[0], points_bf[1], points_bf[2], points_bf[3]);
+    
+//     DEBUG_I("%f,%f,%f", bodyToFootPosBezier[0], bodyToFootPosBezier[1], bodyToFootPosBezier[2]);
+
+//     bezPeriodTime = miniSpot.move_foot(Leg, bodyToFootPosBezier,60.0) * 1000;
+//     bezierTime += timeIncrement;
+//   }
+// }
+
 void setup()
 {
   DEBUG_BEGIN();
@@ -260,15 +300,26 @@ void loop()
 {
 
   cycle++;
-  if (cycle == 4)
+  if (cycle == 4){
+    //miniSpot.testGaitGen();
+    //delay(1000);
     cycle = 0;
-
+  }
   // Serial.print("ESP/LOOP/CYCLE:");
   // Serial.println(cycle);
 
   current_time = micros();
   if(current_time - last_time > cycle_time){
     last_time = current_time;
+
+    // if (t_swing < 1.1) {
+    // //swingPos = gaitGen.bezier(t_swing, bezierPoints[0], bezierPoints[1], bezierPoints[2], bezierPoints[3]);
+    // //DEBUG_I("%f,%f,%f,%f", t_swing, swingPos[0],  swingPos[1], swingPos[2]);
+    
+    // performBezier(0, t_swing, 0.1, bezierPoints);
+    
+    // //t_swing += 0.05;
+    // }
     
     if (gait_no_blocking_test){
       miniSpot.perform_gait_no_blocking(gait_backward, false);
@@ -281,15 +332,18 @@ void loop()
       }
     }
 
-    if (pi_command.new_command){    
+    if (pi_command.new_command){ 
+
       pi_command.new_command = false;
       DEBUG_I("Command: %d", pi_command.command);
+      
       switch (pi_command.command)
       {
       case SET_STANCE_STRAIGHT:
         Serial.println("SET_STANCE_STRAIGHT");
         miniSpot.straight_calibration_stance();
         break;
+
       case SET_STANCE_PRONE:
         Serial.println("SET_STANCE_PRONE");
         miniSpot.prone_calibration_stance();
@@ -479,8 +533,7 @@ void loop()
 }
 
 void printFootPos(int leg){
-  Eigen::Vector3d footPosition;
-  miniSpot.getFootPosition(leg, footPosition);
+  Eigen::Vector3d footPosition = miniSpot.getFootPosition(leg);
   DEBUG_I("Foot Position: %f, %f, %f", footPosition[0], footPosition[1], footPosition[2]);
 }
 
@@ -539,25 +592,25 @@ bool process_stream_control(char c)
     if (feet_stream_control.selected < 4)
       feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() + feet_stream_control.step;
     else if (feet_stream_control.selected == 4)
-      feet_stream_control.body_orientation.x() += feet_stream_control.step;
+      feet_stream_control.body_orientation.y() += feet_stream_control.step;
     break;
   case 'k':
     if (feet_stream_control.selected < 4)
       feet_stream_control.feet_shifts[feet_stream_control.selected].x() = feet_stream_control.feet_shifts[feet_stream_control.selected].x() - feet_stream_control.step;
     else if (feet_stream_control.selected == 4)
-      feet_stream_control.body_orientation.x() -= feet_stream_control.step;
+      feet_stream_control.body_orientation.y() -= feet_stream_control.step;
     break;
   case 'j':
     if (feet_stream_control.selected < 4)
       feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() + feet_stream_control.step;
     else if (feet_stream_control.selected == 4)
-      feet_stream_control.body_orientation.y() += feet_stream_control.step;
+      feet_stream_control.body_orientation.x() -= feet_stream_control.step;
     break;
   case 'l':
     if (feet_stream_control.selected < 4)
       feet_stream_control.feet_shifts[feet_stream_control.selected].y() = feet_stream_control.feet_shifts[feet_stream_control.selected].y() - feet_stream_control.step;
     else if (feet_stream_control.selected == 4)
-      feet_stream_control.body_orientation.y() -= feet_stream_control.step;
+      feet_stream_control.body_orientation.x() += feet_stream_control.step;
     break;
   case 'u':
     if (feet_stream_control.selected < 4)

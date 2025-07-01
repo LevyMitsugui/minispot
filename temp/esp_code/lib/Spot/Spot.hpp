@@ -7,6 +7,7 @@
 #include "config.h"
 #include <ArduinoEigen.h>
 #include "SpotModel.hpp"
+#include "GaitGen.hpp"
 
 #define N_SERVOS 12
 #define POS_ERROR_THRESHOLD 0.1 // degrees
@@ -30,7 +31,7 @@ public:
     void getPositionString(char(& PosString)[256],long time);
     
     bool all_goals_reached();
-    void getFootPosition(int leg, Eigen::Vector3d &footPosition);
+    Eigen::Vector3d getFootPosition(int leg);
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
     void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
@@ -53,6 +54,7 @@ public:
     void prone_calibration_stance();
 
     // - - - Testing Space - - -
+    void testGaitGen();
     void measure_speed();
     // - - - - - - - - - - - - -
 
@@ -66,6 +68,7 @@ public:
 
 
     SpotModel model;
+    GaitGen gaitGen;
 
     
     double timeHelper[4];  // To be used inside functions that require time memory between cycles

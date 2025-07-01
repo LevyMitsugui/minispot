@@ -73,8 +73,10 @@ void SpotModel::HipToFeet(
     const Eigen::Matrix4d T_bf[NUM_LEGS])
 {
     Eigen::Matrix4d T_wb = LieAlgebra::RpToTrans(
-    LieAlgebra::RPY(bodyOrientationRPY[0], bodyOrientationRPY[1], bodyOrientationRPY[2]).block<3, 3>(0, 0),
-    bodyPosition);
+        LieAlgebra::RPY(bodyOrientationRPY[0], 
+                        bodyOrientationRPY[1], 
+                        bodyOrientationRPY[2]).block<3, 3>(0, 0),
+        bodyPosition);
 
     for (int i = 0; i < NUM_LEGS; ++i) {
         Eigen::Vector3d footPosInBody = T_bf[i].block<3, 1>(0, 3); // foot position in torso frame
@@ -210,18 +212,17 @@ void SpotModel::ComputeJointAnglesFromTranslation(
     double jointAngles[NUM_LEGS][NUM_JOINTS],
     const Eigen::Vector3d& bodyPosition)
 {
-    // Create world-to-body transform with translation only, identity rotation
+    DEBUG_I("bodyPosition: %f %f %f", bodyPosition[0], bodyPosition[1], bodyPosition[2]);
+    
     Eigen::Matrix4d T_wb = LieAlgebra::RpToTrans(Eigen::Matrix3d::Identity(), bodyPosition);
 
     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
-        // Transform from world to hip: T_wh = T_wb⁻¹ * T_bh
-        Eigen::Matrix4d T_wh = LieAlgebra::TransInv(T_wb) * T_bh[legIdx];
+        Eigen::Matrix4d T_wh = T_wb * T_bh[legIdx];
 
-        // Transform from hip to foot: T_hf = T_wh⁻¹ * T_bf
         Eigen::Matrix4d T_hf = LieAlgebra::TransInv(T_wh) * T_bf[legIdx];
 
-        // Extract foot position in hip frame
         Eigen::Vector3d footPosInHip = T_hf.block<3, 1>(0, 3);
+
 
         if      (footPosInHip.x() < -0.08 )  footPosInHip.x() = -0.08;
         else if (footPosInHip.x() >  0.065 ) footPosInHip.x() =  0.065;
@@ -234,10 +235,9 @@ void SpotModel::ComputeJointAnglesFromTranslation(
         if      (footPosInHip.z() < -0.18 ) footPosInHip.z() = -0.18;
         else if (footPosInHip.z() > -0.02 ) footPosInHip.z() = -0.02;
 
-        // Compute side of the robot for IK
+
         LegQuadrant side = (legIdx == FR_m || legIdx == RR_m) ? Right : Left;
 
-        // Compute joint angles
         double jointAngleSet[NUM_JOINTS];
         Legs[legIdx].GetJointAngles(footPosInHip[0], footPosInHip[1], footPosInHip[2], side, jointAngleSet);
 
@@ -262,7 +262,8 @@ void SpotModel::ComputeJointAnglesFromRotation(
 
     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
         // Transform from world to hip: T_wh = T_wb⁻¹ * T_bh
-        Eigen::Matrix4d T_wh = LieAlgebra::TransInv(T_wb) * T_bh[legIdx];
+        //Eigen::Matrix4d T_wh = LieAlgebra::TransInv(T_wb) * T_bh[legIdx];
+        Eigen::Matrix4d T_wh = T_wb * T_bh[legIdx];
 
         // Transform from hip to foot: T_hf = T_wh⁻¹ * T_bf
         Eigen::Matrix4d T_hf = LieAlgebra::TransInv(T_wh) * T_bf[legIdx];

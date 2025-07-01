@@ -11,7 +11,8 @@ using namespace std;
 
 #define STD_SPEED 450 // steps/s
 #define STD_SPEED_RAD 0.8 // rad/s
-#define SPEED_LAST_EDITION 2.299645812 //0.02 //1.149822906 // 2.299645812 // rad/s
+#define SPEED_LAST_EDITION 30 //0.02 //1.149822906 // 2.299645812 // rad/s
+
 
 Spot::Spot()
 {

@@ -271,7 +271,7 @@ void loop()
     last_time = current_time;
     
     if (gait_no_blocking_test){
-      miniSpot.perform_gait_no_blocking(gait_rotate_right, false);
+      miniSpot.perform_gait_no_blocking(gait_backward, false);
     }
 
     if (test_time){
@@ -379,7 +379,7 @@ void loop()
       case NO_BLOCKING_TEST:
         DEBUG_I("NO_BLOCKING_TEST");
         gait_no_blocking_test = !gait_no_blocking_test;
-        miniSpot.perform_gait_no_blocking(gait_rotate_right, true);
+        miniSpot.perform_gait_no_blocking(gait_backward, true);
         break;
 
       case TEST_TIME:
@@ -436,7 +436,7 @@ void loop()
           miniSpot.Servo_List[11].GetPoseEstimate();
           break;
         case 4:
-          miniSpot.rotate(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.y());
+          miniSpot.rotate(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.z());
           break;
         
         case 5:
@@ -508,6 +508,7 @@ bool process_stream_control(char c)
     } else if (feet_stream_control.step <= 0.01) {
       feet_stream_control.step = feet_stream_control.step + 0.001;
     }
+    DEBUG_I("Step value: %f", feet_stream_control.step);
     break;
   case 'n':
     if (feet_stream_control.step > 0.01) {
@@ -515,6 +516,7 @@ bool process_stream_control(char c)
     } else if (feet_stream_control.step <= 0.01) {
       feet_stream_control.step = feet_stream_control.step - 0.001;
     }
+    DEBUG_I("Step value: %f", feet_stream_control.step);
     break;
   case '1':
     feet_stream_control.selected = 0;

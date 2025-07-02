@@ -7,7 +7,6 @@
 #include "config.h"
 #include <ArduinoEigen.h>
 #include "SpotModel.hpp"
-#include "GaitGen.hpp"
 
 #define N_SERVOS 12
 #define POS_ERROR_THRESHOLD 0.1 // degrees
@@ -25,12 +24,13 @@ public:
     Spot();
     void Init();
     void Init_Servos();
+
     void Update_Spot(int ACC);
+    bool all_goals_reached();
+    
     double getLoads();
     void getLoadString(char (& LoadString)[256],long time);
     void getPositionString(char(& PosString)[256],long time);
-    
-    bool all_goals_reached();
     Eigen::Vector3d getFootPosition(int leg);
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
@@ -40,12 +40,15 @@ public:
     double Leg_Joint_Speeds(double (& speed) [3],double angles[3],int leg, int speed_const);
     double Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, double max_speed);
 
-    void move_feet(Eigen::Vector3d vectors[NUM_LEGS]);
+    double move_feet(Eigen::Vector3d vectors[NUM_LEGS], double max_speed);
     double move_foot(int leg, Eigen::Vector3d vector, double max_speed);
 
     void translate(double x, double y, double z);
     void rotate(double row, double pitch, double yaw);
-    void pose(Eigen::Vector3d orientation, Eigen::Vector3d position);
+
+    void set_lean(double x, double y, double z);
+    void set_rpy(double row, double pitch, double yaw);
+    double pose();
     bool touch_ground(int leg);
 
     void set_stance_wspeed(const double &l_shoulder_stance, const double &l_elbow_stance, const double &l_wrist_stance,
@@ -53,24 +56,27 @@ public:
     void straight_calibration_stance();
     void prone_calibration_stance();
 
+    Eigen::Vector3d bezier(double t,
+                           Eigen::Vector3d p0,
+                           Eigen::Vector3d p1,
+                           Eigen::Vector3d p2,
+                           Eigen::Vector3d p3   );
+
+
     // - - - Testing Space - - -
     void testGaitGen();
-    void measure_speed();
     // - - - - - - - - - - - - -
 
     SpotServo Servo_List[N_SERVOS];
-    double Mem_Agnles[N_SERVOS];
-
     double joint_angles[NUM_LEGS][NUM_JOINTS];
-    Eigen::Vector3d torsoOrientationRPY;
-    Eigen::Vector3d torsoPosition;
+
+    Eigen::Vector3d torsoRPY;
+    Eigen::Vector3d torsoRPYTarget;
+    Eigen::Vector3d torsoLean;
+    Eigen::Vector3d torsoLeanTarget;
     Eigen::Matrix4d TorsoToFoot[NUM_LEGS]; // TODO maybe this should be exclusive for model class
 
-
     SpotModel model;
-    GaitGen gaitGen;
-
-    
     double timeHelper[4];  // To be used inside functions that require time memory between cycles
     
 

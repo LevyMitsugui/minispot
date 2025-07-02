@@ -39,7 +39,6 @@ SpotModel::SpotModel(double shoulder_length,
     Legs[RR_m].Initialize(shoulder_length, elbow_length, wrist_length);
 
     Eigen::Matrix3d Rwb = Eigen::Matrix3d::Identity();
-
     // Homogenous transforms from body to hip
     T_bh[FL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( hip_x / 2.0,  hip_y / 2.0, 0));
     T_bh[FR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( hip_x / 2.0, -hip_y / 2.0, 0));
@@ -51,11 +50,6 @@ SpotModel::SpotModel(double shoulder_length,
     T_bf[FR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0, (-foot_y / 2.0), -height));
     T_bf[RL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, ( foot_y / 2.0), -height));
     T_bf[RR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, (-foot_y / 2.0), -height));
-
-    // TorsoToFoot[FL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0, ( foot_y / 2.0) + shoulder_length, -height));
-    // TorsoToFoot[FR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d( foot_x / 2.0, (-foot_y / 2.0) - shoulder_length, -height));
-    // TorsoToFoot[RL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, ( foot_y / 2.0) + shoulder_length, -height));
-    // TorsoToFoot[RR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, (-foot_y / 2.0) - shoulder_length, -height));
 }
 
 /**
@@ -100,52 +94,45 @@ void SpotModel::HipToBodyV(int leg, Eigen::Vector3d p_hf, Eigen::Vector3d& p_bf)
     p_bf = Eigen::Vector3d(v_v.x(), v_v.y(), v_v.z());
 }
 
-/**
- * @brief IK Calculate the inverse kinematics for each leg given the body orientation and position.
- *
- * @param jointAngles The output array of joint angles for each leg.
- * @param bodyOrientationRPY The orientation of the robot body in terms of roll, pitch, and yaw, in radians.
- * @param bodyPosition The position of the robot body.
- */
-void SpotModel::IK( // TODO it does not look like it is updating the values in memory correctly.
-    double jointAngles[NUM_LEGS][NUM_JOINTS],
-    const Eigen::Vector3d& bodyOrientationRPY,
-    const Eigen::Vector3d& bodyPosition)
-{
-    Eigen::Vector3d hipToFootVectors[NUM_LEGS];
-    HipToFeet(hipToFootVectors, bodyOrientationRPY, bodyPosition, T_bf);
+// /**
+//  * @brief IK Calculate the inverse kinematics for each leg given the body orientation and position.
+//  *
+//  * @param jointAngles The output array of joint angles for each leg.
+//  * @param bodyOrientationRPY The orientation of the robot body in terms of roll, pitch, and yaw, in radians.
+//  * @param bodyPosition The position of the robot body.
+//  */
+// void SpotModel::IK( // TODO it does not look like it is updating the values in memory correctly.
+//     double jointAngles[NUM_LEGS][NUM_JOINTS],
+//     const Eigen::Vector3d& bodyOrientationRPY,
+//     const Eigen::Vector3d& bodyPosition)
+// {
+//     Eigen::Vector3d hipToFootVectors[NUM_LEGS];
+//     HipToFeet(hipToFootVectors, bodyOrientationRPY, bodyPosition, T_bf);
 
-    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
-        double jointAngleSet[NUM_JOINTS];
-        Eigen::Vector3d hipToFoot = hipToFootVectors[legIdx];
-        LegQuadrant side = (legIdx == FR_m || legIdx == RR_m) ? Right : Left;
+//     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
+//         double jointAngleSet[NUM_JOINTS];
+//         Eigen::Vector3d hipToFoot = hipToFootVectors[legIdx];
+//         LegQuadrant side = (legIdx == FR_m || legIdx == RR_m) ? Right : Left;
 
-        Legs[legIdx].GetJointAngles(hipToFoot[0], hipToFoot[1], hipToFoot[2], side, jointAngleSet);
+//         Legs[legIdx].GetJointAngles(hipToFoot[0], hipToFoot[1], hipToFoot[2], side, jointAngleSet);
 
-        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx) {
-            jointAngles[legIdx][jointIdx] = jointAngleSet[jointIdx];
+//         for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx) {
+//             jointAngles[legIdx][jointIdx] = jointAngleSet[jointIdx];
             
-        }
-    }
+//         }
+//     }
 
-    #ifdef VALIDATE_MODEL
-        Eigen::Vector3d footPositions;
-        for(int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
-            FK_singular(jointAngles[legIdx], legIdx, footPositions);
-            DEBUG_I("X: %f : %f  Y: %f : %f   Z: %f : %f", 
-            hipToFootVectors[legIdx][0], footPositions[0], 
-            hipToFootVectors[legIdx][1], footPositions[1], 
-            hipToFootVectors[legIdx][2], footPositions[2]);
-        }
-    #endif
-}
-
-void SpotModel::translateBody(
-    double jointAngles[NUM_LEGS][NUM_JOINTS],
-    const Eigen::Vector3d& bodyPosition)
-{
-
-}
+//     #ifdef VALIDATE_MODEL
+//         Eigen::Vector3d footPositions;
+//         for(int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
+//             FK_singular(jointAngles[legIdx], legIdx, footPositions);
+//             DEBUG_I("X: %f : %f  Y: %f : %f   Z: %f : %f", 
+//             hipToFootVectors[legIdx][0], footPositions[0], 
+//             hipToFootVectors[legIdx][1], footPositions[1], 
+//             hipToFootVectors[legIdx][2], footPositions[2]);
+//         }
+//     #endif
+// }
 
 /**
  * @brief IK_singular Calculate the inverse kinematics for a single
@@ -206,7 +193,43 @@ void SpotModel::FK_singular(
     footPosition[2] = xyz[2];
 }
 
-// make a hip to foot that atualizes the transforms
+void SpotModel::ComputePoseJointAngles(
+    double jointAngles[NUM_LEGS][NUM_JOINTS],
+    const Eigen::Vector3d& bodyPosition,
+    const Eigen::Vector3d& bodyOrientationRPY)
+{
+    // Build the world-to-body transform using both rotation and translation
+    Eigen::Matrix3d R = LieAlgebra::RPY(
+        bodyOrientationRPY[0],
+        bodyOrientationRPY[1],
+        bodyOrientationRPY[2]
+    ).block<3, 3>(0, 0);
+
+    Eigen::Matrix4d T_wb = LieAlgebra::RpToTrans(R, bodyPosition);
+
+    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
+        // Transform from world to hip: T_wh = T_wb⁻¹ * T_bh
+        Eigen::Matrix4d T_wh = T_wb * T_bh[legIdx];
+
+        // Transform from hip to foot: T_hf = T_wh⁻¹ * T_bf
+        Eigen::Matrix4d T_hf = LieAlgebra::TransInv(T_wh) * T_bf[legIdx];
+
+        // Extract foot position in hip frame
+        Eigen::Vector3d footPosInHip = T_hf.block<3, 1>(0, 3);
+
+        // Compute side for IK
+        LegQuadrant side = (legIdx == FR_m || legIdx == RR_m) ? Right : Left;
+
+        // Compute joint angles
+        double jointAngleSet[NUM_JOINTS];
+        Legs[legIdx].GetJointAngles(footPosInHip[0], footPosInHip[1], footPosInHip[2], side, jointAngleSet);
+
+        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx) {
+            jointAngles[legIdx][jointIdx] = jointAngleSet[jointIdx];
+        }
+    }
+}
+
 
 void SpotModel::ComputeJointAnglesFromTranslation(
     double jointAngles[NUM_LEGS][NUM_JOINTS],
@@ -295,73 +318,25 @@ void SpotModel::ComputeJointAnglesFromRotation(
     }
 }
 
+// void SpotModel::IKFeetOverrides( // TODO Should not be used, REMOVE
+//     double jointAngles[NUM_LEGS][NUM_JOINTS], 
+//     const Eigen::Vector3d& bodyOrientationRPY, 
+//     const Eigen::Vector3d& bodyPosition, 
+//     const Eigen::Vector3d feetShifts[NUM_LEGS])
+// {
+//     // Eigen::Matrix4d baseToFootTransforms[NUM_LEGS];
 
+//     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
+//         Eigen::Vector3d originalFootPos = T_bf[legIdx].block<3, 1>(0, 3);
+//         Eigen::Vector3d shiftedFootPos = originalFootPos + feetShifts[legIdx];
 
-void SpotModel::rotateBody( // TODO continue here
-    double jointAngles[NUM_LEGS][NUM_JOINTS],
-    const Eigen::Vector3d& bodyOrientationRPY)
-{   
-    Eigen::Matrix4d T_hf_print[NUM_LEGS];
-    for(int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
-        T_hf_print[legIdx] = LieAlgebra::TransInv(T_bh[legIdx]) * T_bf[legIdx];
-    }
-    DEBUG_PRINT_MATRIX4D("hip to foot 0", T_hf_print[FL_m]);
-    DEBUG_PRINT_MATRIX4D("hip to foot 1", T_hf_print[FR_m]);
-    DEBUG_PRINT_MATRIX4D("hip to foot 2", T_hf_print[RL_m]);
-    DEBUG_PRINT_MATRIX4D("hip to foot 3", T_hf_print[RR_m]);
+//         // baseToFootTransforms[legIdx] = LieAlgebra::RpToTrans(
+//         //     Eigen::Matrix3d::Identity(), shiftedFootPos);
 
-    Eigen::Vector3d hipToFootVectors[NUM_LEGS];
-    Eigen::Matrix4d T_wb = LieAlgebra::RpToTrans( // this considers world flat and cetered to the torso. ("world" is a virtual reference frame, used to calculate transforms to the feet)
-        LieAlgebra::RPY(bodyOrientationRPY[0], bodyOrientationRPY[1], bodyOrientationRPY[2]).block<3, 3>(0, 0),
-        Eigen::Vector3d::Zero());
-    
-    for(int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
-        // world to hip first!
-        Eigen::Matrix4d T_wh = T_wb * T_bh[legIdx];
+//         T_bf[legIdx] = LieAlgebra::RpToTrans(
+//             Eigen::Matrix3d::Identity(), shiftedFootPos);
+//     }
 
-        //              T_hf =      T_hw                 * T_wf -> here is the maigc, instead of actualy using T_wf we will use T_bf, so it will apply the movement to each foot
-        Eigen::Matrix4d T_hf = LieAlgebra::TransInv(T_wh) * T_bf[legIdx];
-        
-        T_hf_print[legIdx] = T_hf; // TODO remove, for debugging
-        
-        // with T_hf in hands we can get the h -> f vectors and process the IK
-        Eigen::Vector3d footPosInHip = T_hf.block<3,1>(0,3);
-        IK_singular(jointAngles[legIdx], footPosInHip, legIdx);
-
-        // Update new T_bf -> body to feet transform
-        //Eigen::Vector4d V_bf_new = LieAlgebra::TransInv(T_wh) * (Eigen::Vector4d(footPosInHip.x(),footPosInHip.y(),footPosInHip.z(),1.0));
-        //T_bf[legIdx].block<4,1>(0,3) = V_bf_new;
-        T_bf[legIdx].block<4,1>(0,3) = T_bh[legIdx] * Eigen::Vector4d(footPosInHip.x(),footPosInHip.y(),footPosInHip.z(),1.0);
-    }
-    
-    for(int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
-        T_hf_print[legIdx] = LieAlgebra::TransInv(T_bh[legIdx]) * T_bf[legIdx];
-    }
-    DEBUG_PRINT_MATRIX4D("hip to foot 0 new", T_hf_print[FL_m]);
-    DEBUG_PRINT_MATRIX4D("hip to foot 1 new", T_hf_print[FR_m]);
-    DEBUG_PRINT_MATRIX4D("hip to foot 2 new", T_hf_print[RL_m]);
-    DEBUG_PRINT_MATRIX4D("hip to foot 3 new", T_hf_print[RR_m]);
-}
-
-void SpotModel::IKFeetOverrides( // TODO Should not be used, REMOVE
-    double jointAngles[NUM_LEGS][NUM_JOINTS], 
-    const Eigen::Vector3d& bodyOrientationRPY, 
-    const Eigen::Vector3d& bodyPosition, 
-    const Eigen::Vector3d feetShifts[NUM_LEGS])
-{
-    // Eigen::Matrix4d baseToFootTransforms[NUM_LEGS];
-
-    for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx) {
-        Eigen::Vector3d originalFootPos = T_bf[legIdx].block<3, 1>(0, 3);
-        Eigen::Vector3d shiftedFootPos = originalFootPos + feetShifts[legIdx];
-
-        // baseToFootTransforms[legIdx] = LieAlgebra::RpToTrans(
-        //     Eigen::Matrix3d::Identity(), shiftedFootPos);
-
-        T_bf[legIdx] = LieAlgebra::RpToTrans(
-            Eigen::Matrix3d::Identity(), shiftedFootPos);
-    }
-
-    // IK(jointAngles, bodyOrientationRPY, bodyPosition, baseToFootTransforms);
-    IK(jointAngles, bodyOrientationRPY, bodyPosition);
-}
+//     // IK(jointAngles, bodyOrientationRPY, bodyPosition, baseToFootTransforms);
+//     IK(jointAngles, bodyOrientationRPY, bodyPosition);
+// }

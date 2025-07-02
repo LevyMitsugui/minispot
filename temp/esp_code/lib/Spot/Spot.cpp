@@ -22,9 +22,11 @@ Spot::Spot()
         ID[i] = Servo_List[i].Get_servo_ID();
     }
     model = SpotModel();
-    gaitGen = GaitGen();
-    torsoOrientationRPY = Eigen::Vector3d(0, 0, 0); // TODO ideally read the position of the servos and
-    torsoPosition = Eigen::Vector3d(0, 0, 0);       // do the direct kinematics and star from there.
+    torsoRPY = Eigen::Vector3d(0, 0, 0); // TODO ideally read the position of the servos and
+    torsoLean = Eigen::Vector3d(0, 0, 0);       // do the direct kinematics and star from there.
+
+    torsoRPYTarget = Eigen::Vector3d(0, 0, 0);
+    torsoLeanTarget = Eigen::Vector3d(0, 0, 0);
 
     // frame_forward = 0; // TODO remove this
     // frame_backward = 0;
@@ -40,8 +42,7 @@ void Spot::Init()
     {
         this->Servo_List[i].Init();
     }
-    gaitGen.Init(this->model);
-    pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
+    pose();
 }
 
 void Spot::Init_Servos()
@@ -92,20 +93,20 @@ Eigen::Vector3d Spot::getFootPosition(int leg){
     return model.T_bf[leg].block<3,1>(0,3);
 }
 
-void Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS]){ // TODO Still using old IK and old speed calc
-    model.IKFeetOverrides(joint_angles, torsoOrientationRPY, torsoPosition, vectors);
-
-    int iterator = 0;
+double Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS], double max_speed){ // TODO Still using old IK and old speed calc
     double speeds[NUM_JOINTS];
+    double dt = 0.0, dt_ = 0.0;
 
-    for(int i = 0; i < NUM_LEGS; i++){
-      double dt_movement = Leg_Joint_Speeds(speeds, joint_angles[i], iterator/3, STD_SPEED);
-      for(int j = 0; j < NUM_JOINTS; j++){
-        Servo_List[iterator].SetGoal(joint_angles[i][j] * 180 / M_PI, speeds[iterator%3]);
-        iterator += 1;
-      }
+    for(int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
+        model.IK_singular(joint_angles[legIdx], vectors[legIdx], legIdx);
+        dt_ = Leg_Joint_Speeds_2(speeds, joint_angles[legIdx], legIdx, max_speed);
+        dt = (dt > dt_) ? dt : dt_;
+        for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
+            Servo_List[legIdx * 3 + jointIdx].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, speeds[jointIdx]); // TODO see how the code use these speeds, even though it says it is deg/s i strongly doubt it.
+        }
     }
     Update_Spot(50);
+    return dt;
 }
 
 double Spot::move_foot(int leg, Eigen::Vector3d vector, double max_speed){
@@ -117,14 +118,14 @@ double Spot::move_foot(int leg, Eigen::Vector3d vector, double max_speed){
     for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
         Servo_List[leg * 3 + jointIdx].SetGoal(joint_angles[leg][jointIdx] * 180 / M_PI, speeds[jointIdx]); // TODO see how the code use these speeds, even though it says it is deg/s i strongly doubt it.
     }
-    Update_Spot(50);
+    //Update_Spot(50);
     return dt;
 }
 
 void Spot::translate(double x, double y, double z){
     DEBUG_I("x: %f, y: %f, z: %f", x, y, z);
-    torsoPosition = Eigen::Vector3d(x, y, z);
-    model.ComputeJointAnglesFromTranslation(joint_angles, torsoPosition);
+    torsoLean = Eigen::Vector3d(x, y, z);
+    model.ComputeJointAnglesFromTranslation(joint_angles, torsoLean);
 
     double speeds[NUM_JOINTS];
     double dt = 0;
@@ -137,28 +138,12 @@ void Spot::translate(double x, double y, double z){
             iterator += 1;
         }
     }
-    Update_Spot(50);
 }
-
-// void Spot::rotate(double row, double pitch, double yaw){
-//     DEBUG_I("row: %f, pitch: %f, yaw: %f", row, pitch, yaw);
-//     torsoOrientationRPY = Eigen::Vector3d(row, pitch, yaw);
-//     model.rotateBody(joint_angles, torsoOrientationRPY);
-
-//     int iterator = 0;
-//     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
-//         for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
-//             Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, 0.2);
-//             iterator += 1;
-//         }
-//     }
-//     Update_Spot(50);
-// }
 
 void Spot::rotate(double row, double pitch, double yaw){
     DEBUG_I("row: %f, pitch: %f, yaw: %f", row, pitch, yaw);
-    torsoOrientationRPY = Eigen::Vector3d(row, pitch, yaw);
-    model.ComputeJointAnglesFromRotation(joint_angles, torsoOrientationRPY);
+    torsoRPY = Eigen::Vector3d(row, pitch, yaw);
+    model.ComputeJointAnglesFromRotation(joint_angles, torsoRPY);
 
     double speeds[NUM_JOINTS];
 
@@ -170,19 +155,32 @@ void Spot::rotate(double row, double pitch, double yaw){
             iterator += 1;
         }
     }
-    Update_Spot(50);
 }
 
-void Spot::pose(Eigen::Vector3d orientation, Eigen::Vector3d position){
-    model.IK(joint_angles, orientation, position);
-    int iterator = 0;
+void Spot::set_lean(double x, double y, double z){
+    torsoLeanTarget = Eigen::Vector3d(x, y, z);
+}
+
+void Spot::set_rpy(double row, double pitch, double yaw){
+    torsoRPYTarget = Eigen::Vector3d(row, pitch, yaw);
+}
+
+double Spot::pose(){
+    double speeds[NUM_JOINTS];
+    double dt = 0;
+    double dt_= 0;
+
+    model.ComputePoseJointAngles(joint_angles, torsoLeanTarget, torsoRPYTarget);
+
     for (int legIdx = 0; legIdx < NUM_LEGS; ++legIdx){
         for (int jointIdx = 0; jointIdx < NUM_JOINTS; ++jointIdx){
-            Servo_List[iterator].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, STD_SPEED_RAD);
-            iterator += 1;
+            dt_ = Leg_Joint_Speeds_2(speeds, joint_angles[legIdx], legIdx, 0.2);
+            dt = (dt > dt_) ? dt : dt_;
+            Servo_List[legIdx * 3 + jointIdx].SetGoal(joint_angles[legIdx][jointIdx] * 180 / M_PI, speeds[jointIdx]);
         }
     }
     Update_Spot(50);
+    return dt;
 }
 
 bool Spot::touch_ground(int leg){
@@ -401,131 +399,9 @@ void Spot::testGaitGen(){
     Eigen::Vector3d bezPoint;
     
     for(int i = 0; i < numSteps; i++){
-        bezPoint = gaitGen.bezier((1/numSteps)*i, bezierPoints[0], bezierPoints[1], bezierPoints[2], bezierPoints[3]);
+        bezPoint = bezier((1/numSteps)*i, bezierPoints[0], bezierPoints[1], bezierPoints[2], bezierPoints[3]);
         DEBUG_I("%f,%f,%f", bezPoint[1], bezPoint[2], bezPoint[3]);
     }
-}
-
-
-
-#define TESTING_SPEED (1500 / RAD_TO_STEPS_SPEED)
-void Spot::measure_speed(){ // TODO try to avoid the acceleration part
-    double currentTime = millis();
-    double prevTime = currentTime;
-    double time, graph_time, speed;
-    double startPos, endPos, prevPos, currentPos;
-    
-    Servo_List[0].SetGoal(0.0, TESTING_SPEED);
-    Servo_List[1].SetGoal(-90.0, TESTING_SPEED);
-    Servo_List[2].SetGoal(120.0, TESTING_SPEED);
-    Update_Spot(0);
-    while (!all_goals_reached()){
-    }
-    delay(1000);
-    
-    startPos = Servo_List[2].GetPoseEstimate();
-    prevPos = startPos;
-    Servo_List[2].SetGoal(60.0, TESTING_SPEED);
-    Update_Spot(0);
-    prevTime = millis();
-    graph_time = prevTime;
-    while (!all_goals_reached()){
-        time = millis();
-        // currentPos = Servo_List[2].GetPoseEstimate();
-        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
-        // prevPos = currentPos;
-        // graph_time = time;
-    }
-    endPos = Servo_List[2].GetPoseEstimate();
-    DEBUG_I("\n");
-    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
-    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
-    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
-    DEBUG_I("Speed rad/s: %f", speed);
-    delay(1000);
-
-    startPos = Servo_List[2].GetPoseEstimate();
-    prevPos = startPos;
-    Servo_List[2].SetGoal(120.0, TESTING_SPEED);
-    Update_Spot(0);
-    prevTime = millis();
-    graph_time = prevTime;
-    while (!all_goals_reached()){
-        time = millis();
-        // currentPos = Servo_List[2].GetPoseEstimate();
-        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
-        // prevPos = currentPos;
-        // graph_time = time;
-    }
-    endPos = Servo_List[2].GetPoseEstimate();
-    DEBUG_I("\n");
-    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
-    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
-    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
-    DEBUG_I("Speed rad/s: %f", speed);
-    delay(1000);
-
-    startPos = Servo_List[1].GetPoseEstimate();
-    prevPos = startPos;
-    Servo_List[1].SetGoal(90.0, TESTING_SPEED);
-    Update_Spot(0);
-    prevTime = millis();
-    graph_time = prevTime;
-    while (!all_goals_reached()){
-        time = millis();
-        // currentPos = Servo_List[1].GetPoseEstimate();
-        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
-        // prevPos = currentPos;
-        // graph_time = time;
-    }
-    endPos = Servo_List[1].GetPoseEstimate();
-    DEBUG_I("\n");
-    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
-    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
-    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
-    DEBUG_I("Speed rad/s: %f", speed);
-    delay(1000);
-
-    startPos = Servo_List[1].GetPoseEstimate();
-    prevPos = startPos;
-    Servo_List[1].SetGoal(-90.0, TESTING_SPEED);
-    Update_Spot(0);
-    prevTime = millis();
-    graph_time = prevTime;
-    while (!all_goals_reached()){
-        time = millis();
-        // currentPos = Servo_List[1].GetPoseEstimate();
-        // DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
-        // prevPos = currentPos;
-        // graph_time = time;
-    }
-    endPos = Servo_List[1].GetPoseEstimate();
-    DEBUG_I("\n");
-    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
-    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
-    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
-    DEBUG_I("Speed rad/s: %f", speed);
-    delay(1000);
-
-    startPos = Servo_List[1].GetPoseEstimate();
-    prevPos = startPos;
-    Servo_List[1].SetGoal(0.0, TESTING_SPEED);
-    Update_Spot(0);
-    prevTime = millis();
-    graph_time = prevTime;
-    while (!all_goals_reached()){
-        time = millis();
-        currentPos = Servo_List[1].GetPoseEstimate();
-        DEBUG_I("%f,%f", time, (currentPos - prevPos) / (time - graph_time));
-        prevPos = currentPos;
-        graph_time = time;
-    }
-    endPos = Servo_List[1].GetPoseEstimate();
-    DEBUG_I("\n");
-    DEBUG_I("Start and End Pos: %f - %f  Diff: %f", startPos, endPos, endPos - startPos);
-    DEBUG_I("Speed degrees/s: %f", (1000 * (endPos - startPos) / (time - prevTime)));
-    speed = (PI * 1000 * (endPos - startPos) / (time - prevTime)/180);
-    DEBUG_I("Speed rad/s: %f", speed);
 }
 // - - - - - - - - - - - - -
 

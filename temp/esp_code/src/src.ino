@@ -29,7 +29,6 @@
 #include "Kinematics.hpp"
 #include "SpotModel.hpp"
 #include "LieAlgebra.hpp"
-#include "GaitGen.hpp"
 
 #define PRINT false
 #define COMMAND_BUFFER_SIZE 256
@@ -84,7 +83,6 @@ enum CONTROL_STATES
   GAIT_ROTATE_RIGHT,   // 13
   GAIT_ROTATE_LEFT,    // 14 
   NO_BLOCKING_TEST,    // 15
-  TEST_TIME            // 16
 };
 
 enum SERVOS_CONTROL_IDX
@@ -301,8 +299,6 @@ void loop()
 
   cycle++;
   if (cycle == 4){
-    //miniSpot.testGaitGen();
-    //delay(1000);
     cycle = 0;
   }
   // Serial.print("ESP/LOOP/CYCLE:");
@@ -387,11 +383,15 @@ void loop()
         break;
 
       case SET_POSE_WALK:
-        miniSpot.pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0));
+        miniSpot.set_lean(0, 0, 0);
+        miniSpot.set_rpy(0, 0, 0);
+        miniSpot.pose();
         break;
       
       case SET_POSE_PRONE:
-        miniSpot.pose(Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0.02));
+        miniSpot.set_lean(0, 0, 0.02);
+        miniSpot.set_rpy(0, 0, 0);
+        miniSpot.pose();
         break;
       
       case TEST_GAIT:
@@ -434,17 +434,6 @@ void loop()
         DEBUG_I("NO_BLOCKING_TEST");
         gait_no_blocking_test = !gait_no_blocking_test;
         miniSpot.perform_gait_no_blocking(gait_backward, true);
-        break;
-
-      case TEST_TIME:
-        // if (!test_time){
-        //   miniSpot.timeHelper[1] = miniSpot.move_foot(FL, Eigen::Vector3d(0.13525, 0.135, -0.095), 0.2) * 1000;
-        //   miniSpot.timeHelper[0] = millis();
-        //   DEBUG_I("START TIME: %f", miniSpot.timeHelper[0]);
-        //   DEBUG_I("DELTA TIME: %f", miniSpot.timeHelper[1]);
-        //   test_time = true;
-        // }
-        miniSpot.measure_speed();
         break;
 
       case TOGGLE_LOG:
@@ -490,11 +479,16 @@ void loop()
           miniSpot.Servo_List[11].GetPoseEstimate();
           break;
         case 4:
-          miniSpot.rotate(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.z());
+          //miniSpot.rotate(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.z());
+          miniSpot.set_rpy(feet_stream_control.body_orientation.x(), feet_stream_control.body_orientation.y(), feet_stream_control.body_orientation.z());
+          miniSpot.pose();
           break;
         
         case 5:
-          miniSpot.translate(feet_stream_control.body_translation.x(), feet_stream_control.body_translation.y(), feet_stream_control.body_translation.z());
+          //miniSpot.translate(feet_stream_control.body_translation.x(), feet_stream_control.body_translation.y(), feet_stream_control.body_translation.z());
+          miniSpot.set_lean(feet_stream_control.body_translation.x(), feet_stream_control.body_translation.y(), feet_stream_control.body_translation.z());
+          miniSpot.pose();
+          break;
       }
       if (feet_stream_control.selected <4) printFootPos(feet_stream_control.selected);
       miniSpot.getLoads();

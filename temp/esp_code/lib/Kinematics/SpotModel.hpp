@@ -32,10 +32,10 @@ public:
     
     void HipToBodyV(int leg, Eigen::Vector3d p_hf, Eigen::Vector3d& p_bf);
 
-    void IK(
-        double jointAngles[NUM_LEGS][NUM_JOINTS],
-        const Eigen::Vector3d& bodyOrientationRPY,
-        const Eigen::Vector3d& bodyPosition);
+    // void IK(
+    //     double jointAngles[NUM_LEGS][NUM_JOINTS],
+    //     const Eigen::Vector3d& bodyOrientationRPY,
+    //     const Eigen::Vector3d& bodyPosition);
 
     // void IK(
     //     double joint_angles[NUM_LEGS][NUM_JOINTS], 
@@ -48,16 +48,21 @@ public:
         Eigen::Vector3d newFootPos,         // new foot pos relative to robot torso. 
         int leg);
    
-    void IKFeetOverrides(
-        double jointAngles[NUM_LEGS][NUM_JOINTS], 
-        const Eigen::Vector3d& bodyOrientationRPY, 
-        const Eigen::Vector3d& bodyPosition, 
-        const Eigen::Vector3d feetShifts[NUM_LEGS]);
+    // void IKFeetOverrides(
+    //     double jointAngles[NUM_LEGS][NUM_JOINTS], 
+    //     const Eigen::Vector3d& bodyOrientationRPY, 
+    //     const Eigen::Vector3d& bodyPosition, 
+    //     const Eigen::Vector3d feetShifts[NUM_LEGS]);
 
     void FK_singular(
         double legJointAngles[NUM_JOINTS],
         int leg, 
         Eigen::Vector3d& footPosition);
+
+    void ComputePoseJointAngles(
+        double jointAngles[NUM_LEGS][NUM_JOINTS],
+        const Eigen::Vector3d& bodyPosition,
+        const Eigen::Vector3d& bodyOrientationRPY);
 
     void ComputeJointAnglesFromTranslation(
         double jointAngles[NUM_LEGS][NUM_JOINTS],
@@ -66,20 +71,6 @@ public:
     void ComputeJointAnglesFromRotation(
         double jointAngles[NUM_LEGS][NUM_JOINTS],
         const Eigen::Vector3d& bodyOrientationRPY);
-
-    /**
-     * \brief Apply transforms to the FEET so the body performs a rotation
-     */
-    void rotateBody(
-        double jointAngles[NUM_LEGS][NUM_JOINTS],
-        const Eigen::Vector3d& bodyOrientationRPY);
-
-    /**
-     * \brief Apply transforms to the FEET so the body performs a translation
-     */
-    void translateBody(
-        double jointAngles[NUM_LEGS][NUM_JOINTS],
-        const Eigen::Vector3d& bodyPosition);
 
     Eigen::Matrix4d T_bh[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each shoulder joint
     Eigen::Matrix4d T_bf[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each foot

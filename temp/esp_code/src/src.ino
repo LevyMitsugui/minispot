@@ -56,7 +56,7 @@ double height = 0.145;
 bool log_toggle = false;
 
 int cycle = 0;
-double cycle_time = 50000; // micros
+double cycle_time = 5; // millis
 double current_time = 0;
 double last_time = 0;
 float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
@@ -83,6 +83,8 @@ enum CONTROL_STATES
   GAIT_ROTATE_RIGHT,   // 13
   GAIT_ROTATE_LEFT,    // 14 
   NO_BLOCKING_TEST,    // 15
+  STANCE_TEST,         // 16
+  PERFORM_STEP,        // 17
 };
 
 enum SERVOS_CONTROL_IDX
@@ -115,7 +117,7 @@ CONTROL_STATES control_state = IDLE;
 SERVOS_CONTROL_IDX servo_control_idx = FL_SHOULDER_CONTROL;
 OFFSET_LEAN_FRAME offset_lean_frame = {{0}, {0}};
 PI_COMMAND pi_command = {false, 0, {0}, 0};
-FEET_STREAM_CONTROL feet_stream_control = {0.01, 0, {Eigen::Vector3d(0.0925, 0.085, -0.145), Eigen::Vector3d(0.0925, -0.085, -0.145), Eigen::Vector3d(-0.0925, 0.085, -0.145), Eigen::Vector3d(-0.0925, -0.085, -0.145)}, Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0)};
+FEET_STREAM_CONTROL feet_stream_control = {0.01, 0, {Eigen::Vector3d(0.0925, 0.085, -0.135), Eigen::Vector3d(0.0925, -0.085, -0.135), Eigen::Vector3d(-0.0925, 0.085, -0.135), Eigen::Vector3d(-0.0925, -0.085, -0.135)}, Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(0, 0, 0)};
 
 // helper, TODO remove
 const std::array<std::string, 4> leg_order = {"FL", "FR", "BL", "BR"};
@@ -144,32 +146,24 @@ bool SERIAL_FORWARDING = false;
 
 bool printLoads = false; // TODO remove later. #1137
 
-
-
-void test_task(void *pvParameters) {
-  while(1){
-    DEBUG_I("TEST TASK TEST TASK TEST TASK TEST TASK");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
-}
-
 bool gait_no_blocking_test = false;
 bool test_time = false;
 
-//GaitGen gaitGen = GaitGen();
-double t_swing = 0.0;
-Eigen::Vector3d swingPos;
-Eigen::Vector3d bezierPoints[4] = 
-    {Eigen::Vector3d(0.0,0.0,0.0),
-    Eigen::Vector3d(0.0,0.0,0.06),
-    Eigen::Vector3d(0.08,0.0,0.06),
-    Eigen::Vector3d(0.05,0.0,0.0)};
+bool test_gait = false;
+bool stance_test = false;
+// double t_swing = 0.0;
+// Eigen::Vector3d swingPos;
+// Eigen::Vector3d bezierPoints[4] = 
+//     {Eigen::Vector3d(0.0,0.0,0.0),
+//     Eigen::Vector3d(0.0,0.0,0.06),
+//     Eigen::Vector3d(0.08,0.0,0.06),
+//     Eigen::Vector3d(0.05,0.0,0.0)};
 
-Eigen::Vector3d startingPoint;
-double bezCurrTime = millis();
-double bezPrevTime = bezCurrTime;
-double bezPeriodTime = 0;
-Eigen::Vector3d points_bf [4];
+// Eigen::Vector3d startingPoint;
+// double bezCurrTime = millis();
+// double bezPrevTime = bezCurrTime;
+// double bezPeriodTime = 0;
+// Eigen::Vector3d points_bf [4];
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -222,31 +216,6 @@ void confirm_servos(){
   }
   Serial.println();
 }
-
-// void performBezier(int Leg, double &bezierTime, double timeIncrement, Eigen::Vector3d bezierPoints[4]){
- 
-//   if (bezierTime < timeIncrement) {
-//     startingPoint = miniSpot.model.T_bf[Leg].block<3,1>(0,3);
-//     DEBUG_I("sX: %f, sY: %f, sZ: %f", startingPoint[0], startingPoint[1], startingPoint[2]);
-
-//     for(int i=0; i<4; i++){
-//       points_bf[i] = startingPoint + bezierPoints[i];
-//       DEBUG_I("points_bf[%d]: %f, %f, %f", i,points_bf[i][0], points_bf[i][1],points_bf[i][2]);
-//     }
-//   }
-
-//   bezCurrTime = millis();
-//   double dt = bezCurrTime - bezPrevTime;
-//   if (dt > bezPeriodTime){
-//     bezPrevTime = bezCurrTime;
-//     Eigen::Vector3d bodyToFootPosBezier = gaitGen.bezier(bezierTime, points_bf[0], points_bf[1], points_bf[2], points_bf[3]);
-    
-//     DEBUG_I("%f,%f,%f", bodyToFootPosBezier[0], bodyToFootPosBezier[1], bodyToFootPosBezier[2]);
-
-//     bezPeriodTime = miniSpot.move_foot(Leg, bodyToFootPosBezier,60.0) * 1000;
-//     bezierTime += timeIncrement;
-//   }
-// }
 
 void setup()
 {
@@ -304,18 +273,17 @@ void loop()
   // Serial.print("ESP/LOOP/CYCLE:");
   // Serial.println(cycle);
 
-  current_time = micros();
+  if (test_gait){
+    test_gait = miniSpot.testGaitGen();
+  }
+
+  if (stance_test){
+    stance_test = miniSpot.performStancePhase();
+  }
+
+  current_time = millis();
   if(current_time - last_time > cycle_time){
     last_time = current_time;
-
-    // if (t_swing < 1.1) {
-    // //swingPos = gaitGen.bezier(t_swing, bezierPoints[0], bezierPoints[1], bezierPoints[2], bezierPoints[3]);
-    // //DEBUG_I("%f,%f,%f,%f", t_swing, swingPos[0],  swingPos[1], swingPos[2]);
-    
-    // performBezier(0, t_swing, 0.1, bezierPoints);
-    
-    // //t_swing += 0.05;
-    // }
     
     if (gait_no_blocking_test){
       miniSpot.perform_gait_no_blocking(gait_backward, false);
@@ -326,6 +294,19 @@ void loop()
         DEBUG_I("TIME IS DONE: %f", miniSpot.timeHelper[0]);
         test_time = false;
       }
+    }
+
+    switch (control_state){
+      case PERFORM_STEP:
+        miniSpot.performStep(0, current_time);
+      break;
+
+      default:
+      break;
+    }
+
+    if (miniSpot.stepDone(0)){
+      control_state = IDLE;
     }
 
     if (pi_command.new_command){ 
@@ -395,8 +376,9 @@ void loop()
         break;
       
       case TEST_GAIT:
-        DEBUG_I("TEST_GAIT");
-        miniSpot.perform_gait_singular(3, nCyclePoints, gait_forward_RR, 125000.0);
+        DEBUG_I("TEST_GAIT_GEN");
+        //miniSpot.perform_gait_singular(3, nCyclePoints, gait_forward_RR, 125000.0);
+        test_gait = true;
         break;
       
       case GAIT_FORWARD:
@@ -434,6 +416,18 @@ void loop()
         DEBUG_I("NO_BLOCKING_TEST");
         gait_no_blocking_test = !gait_no_blocking_test;
         miniSpot.perform_gait_no_blocking(gait_backward, true);
+        break;
+      
+      case STANCE_TEST:
+        DEBUG_I("STANCE_TEST");
+        stance_test = true;
+        break;
+
+      case PERFORM_STEP:
+        DEBUG_I("PERFORM_STEP");
+        miniSpot.setPeriods(0.7, 0.35, 0.35);
+        miniSpot.setStanceVelocity(0, Eigen::Vector3d(-0.15, 0.25, 0));
+        control_state = PERFORM_STEP;
         break;
 
       case TOGGLE_LOG:
@@ -529,6 +523,8 @@ void loop()
 void printFootPos(int leg){
   Eigen::Vector3d footPosition = miniSpot.getFootPosition(leg);
   DEBUG_I("Foot Position: %f, %f, %f", footPosition[0], footPosition[1], footPosition[2]);
+  footPosition = miniSpot.getRealFootPosition(leg);
+  DEBUG_I("Foot Position: %f, %f, %f - REAL", footPosition[0], footPosition[1], footPosition[2]);
 }
 
 void serialEvent()

@@ -150,6 +150,8 @@ void SpotServo::SetGoal(const double & goal_pose_, const double & desired_speed_
 	}
 
 	desired_speed = desired_speed_ * RAD_TO_STEPS_SPEED;
+	desired_speed = (desired_speed > MAX_SPEED) ? MAX_SPEED : desired_speed;
+	//DEBUG_I("desired_speed: %f steps/s", desired_speed);
 }
 
 JointType SpotServo::return_joint_type()

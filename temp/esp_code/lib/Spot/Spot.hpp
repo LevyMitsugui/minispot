@@ -11,11 +11,20 @@
 #define N_SERVOS 12
 #define POS_ERROR_THRESHOLD 0.1 // degrees
 
+#define BEZIER_CONTROL_POINTS 4 // cubic bezier curve
+
 enum ServoIndex {
     FL_SHOULDER, FL_ELBOW, FL_WRIST, // leg 0
     FR_SHOULDER, FR_ELBOW, FR_WRIST, // leg 1
     RL_SHOULDER, RL_ELBOW, RL_WRIST, // leg 2
     RR_SHOULDER, RR_ELBOW, RR_WRIST  // leg 3
+};
+
+enum StepState {
+    IDLE_STEP,
+    SWING,
+    STANCE,
+    END_STEP
 };
 
 class Spot
@@ -31,7 +40,8 @@ public:
     double getLoads();
     void getLoadString(char (& LoadString)[256],long time);
     void getPositionString(char(& PosString)[256],long time);
-    Eigen::Vector3d getFootPosition(int leg);
+    Eigen::Vector3d getFootPosition(int Leg);
+    Eigen::Vector3d getRealFootPosition(int leg);
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
     void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
@@ -42,6 +52,7 @@ public:
 
     double move_feet(Eigen::Vector3d vectors[NUM_LEGS], double max_speed);
     double move_foot(int leg, Eigen::Vector3d vector, double max_speed);
+    double move_foot(int leg, Eigen::Vector3d vector, double max_speed, bool noUpdate);
 
     void translate(double x, double y, double z);
     void rotate(double row, double pitch, double yaw);
@@ -62,9 +73,17 @@ public:
                            Eigen::Vector3d p2,
                            Eigen::Vector3d p3   );
 
+    void getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector3d &stanceVelocities);
+
+    bool performStep(int Leg, double &currTimeMillis);
+    int getStepState(int Leg);
+    bool stepDone(int Leg);
+    void setPeriods(double totalPeriod, double stancePeriod, double swingPeriod);
+    void setStanceVelocity(int Leg, Eigen::Vector3d stanceVelocities);
 
     // - - - Testing Space - - -
-    void testGaitGen();
+    bool performStancePhase();
+    bool testGaitGen();
     // - - - - - - - - - - - - -
 
     SpotServo Servo_List[N_SERVOS];
@@ -92,6 +111,26 @@ private:
 
     u8 ID[N_SERVOS];
     //SpotModel model;
+
+    double gaitT;               // seconds
+    double gaitTst;             // secondsd
+    double gaitTsw;             // seconds
+    double gaitProcessPeriod;      // ms
+    double gaitStartTime[2];       // ms
+    double gaitPrevTime[2];        // ms
+    double gaitCurrTime[2];        // ms
+
+    StepState stepState[NUM_LEGS];
+
+    Eigen::Vector3d bezPoint[NUM_LEGS];
+    Eigen::Vector3d bezControlPoints[BEZIER_CONTROL_POINTS];
+
+    Eigen::Vector3d legStartingPos[NUM_LEGS];
+    Eigen::Vector3d stancePoints[NUM_LEGS];
+    Eigen::Vector3d stanceVelocities[NUM_LEGS];
+
+    u8 gaitState[NUM_LEGS];
+
 };
 
 

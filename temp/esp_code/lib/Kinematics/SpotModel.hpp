@@ -16,13 +16,14 @@ enum legs {FL_m, FR_m, RL_m, RR_m};
 class SpotModel {
 public:
     SpotModel(double shoulder_length = 0.045,
-              double elbow_length = 0.08,
+              double elbow_length = 0.077,
               double wrist_length = 0.103,
               double hip_x = 0.185,
               double hip_y = 0.077,
+              double hip_z_offset = 0.01,
               double foot_x = 0.185,
               double foot_y = 0.17,//0.077,
-              double height = 0.145);
+              double height = 0.135);
 
     void HipToFeet(
         Eigen::Vector3d HTF_vectors[NUM_LEGS], 
@@ -74,7 +75,10 @@ public:
 
     Eigen::Matrix4d T_bh[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each shoulder joint
     Eigen::Matrix4d T_bf[NUM_LEGS]; // Transformation matrixes from center of the body (torso) to each foot
-    
+    Eigen::Matrix4d T_wf[NUM_LEGS]; 
+
+    Eigen::Vector3d startingFeetPos[NUM_LEGS];
+
     // TODO create measured values for this using pos feedback and forward kinematics
     // Eigen::Matrix4d T_bf_real[NUM_LEGS]; // body to feet
 
@@ -85,7 +89,7 @@ public:
     
 private:
     double shoulder_length, elbow_length, wrist_length;
-    double hip_x, hip_y, foot_x, foot_y, height;
+    double hip_x, hip_y, hip_z_offset, foot_x, foot_y, height;
 
     //std::map<std::string, Kinematics> Legs;
 };

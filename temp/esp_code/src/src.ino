@@ -85,6 +85,7 @@ enum CONTROL_STATES
   NO_BLOCKING_TEST,    // 15
   STANCE_TEST,         // 16
   PERFORM_STEP,        // 17
+  PERFORM_DYNAMIC_GAIT // 18
 };
 
 enum SERVOS_CONTROL_IDX
@@ -164,6 +165,11 @@ bool stance_test = false;
 // double bezPrevTime = bezCurrTime;
 // double bezPeriodTime = 0;
 // Eigen::Vector3d points_bf [4];
+
+Eigen::Vector3d velocities[4] = {Eigen::Vector3d(0.15,0.0,0.0),
+                                 Eigen::Vector3d(0.15,0.0,0.0),
+                                 Eigen::Vector3d(0.15,0.0,0.0),
+                                 Eigen::Vector3d(0.15,0.0,0.0)};
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -299,15 +305,22 @@ void loop()
     switch (control_state){
       case PERFORM_STEP:
         miniSpot.performStep(0, current_time);
+        miniSpot.performStep(3, current_time);
+      break;
+
+      case PERFORM_DYNAMIC_GAIT:
+        miniSpot.performDynamicGait(current_time, velocities);
       break;
 
       default:
       break;
     }
 
-    if (miniSpot.stepDone(0)){
+    if (control_state == PERFORM_STEP && miniSpot.isStepDone(0, 3)){
       control_state = IDLE;
     }
+
+    miniSpot.Update_Spot(0);
 
     if (pi_command.new_command){ 
 
@@ -425,9 +438,16 @@ void loop()
 
       case PERFORM_STEP:
         DEBUG_I("PERFORM_STEP");
-        miniSpot.setPeriods(0.7, 0.35, 0.35);
-        miniSpot.setStanceVelocity(0, Eigen::Vector3d(-0.15, 0.25, 0));
+        miniSpot.setPeriods(0.4, 0.2, 0.2);
+        miniSpot.setStanceVelocity(0, Eigen::Vector3d(-0.15, 0.0, 0));
+        miniSpot.setStanceVelocity(3, Eigen::Vector3d(-0.15, 0.0, 0));
         control_state = PERFORM_STEP;
+        break;
+
+      case PERFORM_DYNAMIC_GAIT:
+        DEBUG_I("PERFORM_DYNAMIC_GAIT");
+        miniSpot.setPeriods(0.4, 0.2, 0.2);
+        control_state = (control_state == PERFORM_DYNAMIC_GAIT) ? IDLE : PERFORM_DYNAMIC_GAIT;
         break;
 
       case TOGGLE_LOG:

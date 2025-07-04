@@ -75,9 +75,11 @@ public:
 
     void getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector3d &stanceVelocities);
 
+    bool performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
     bool performStep(int Leg, double &currTimeMillis);
     int getStepState(int Leg);
-    bool stepDone(int Leg);
+    bool isStepDone(int Leg);
+    bool isStepDone(int Leg, int Leg2);
     void setPeriods(double totalPeriod, double stancePeriod, double swingPeriod);
     void setStanceVelocity(int Leg, Eigen::Vector3d stanceVelocities);
 
@@ -116,14 +118,14 @@ private:
     double gaitTst;             // secondsd
     double gaitTsw;             // seconds
     double gaitProcessPeriod;      // ms
-    double gaitStartTime[2];       // ms
-    double gaitPrevTime[2];        // ms
-    double gaitCurrTime[2];        // ms
+    double gaitStartTime[NUM_LEGS];       // ms
+    double gaitPrevTime[NUM_LEGS];        // ms
+    double gaitCurrTime[NUM_LEGS];        // ms
 
     StepState stepState[NUM_LEGS];
 
     Eigen::Vector3d bezPoint[NUM_LEGS];
-    Eigen::Vector3d bezControlPoints[BEZIER_CONTROL_POINTS];
+    Eigen::Vector3d bezControlPoints[NUM_LEGS][BEZIER_CONTROL_POINTS];
 
     Eigen::Vector3d legStartingPos[NUM_LEGS];
     Eigen::Vector3d stancePoints[NUM_LEGS];

@@ -166,10 +166,23 @@ bool stance_test = false;
 // double bezPeriodTime = 0;
 // Eigen::Vector3d points_bf [4];
 
-Eigen::Vector3d velocities[4] = {Eigen::Vector3d(0.15,0.0,0.0),
-                                 Eigen::Vector3d(0.15,0.0,0.0),
-                                 Eigen::Vector3d(0.15,0.0,0.0),
-                                 Eigen::Vector3d(0.15,0.0,0.0)};
+#define D_STANCE 10.0 / 100.0
+#define T_GAIT 0.8
+
+// Eigen::Vector3d velocities[4] = {Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
+//                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
+//                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
+//                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0)};
+
+Eigen::Vector3d velocities[4] = {Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
+                                 Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
+                                 Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
+                                 Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0)};
+
+Eigen::Vector3d velocities0[4] = {Eigen::Vector3d(0.0,0.0,0.0),
+                                  Eigen::Vector3d(0.0,0.0,0.0),
+                                  Eigen::Vector3d(0.0,0.0,0.0),
+                                  Eigen::Vector3d(0.0,0.0,0.0)};
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -438,7 +451,7 @@ void loop()
 
       case PERFORM_STEP:
         DEBUG_I("PERFORM_STEP");
-        miniSpot.setPeriods(0.4, 0.2, 0.2);
+        //miniSpot.setPeriods(0.4, 0.2, 0.2);
         miniSpot.setStanceVelocity(0, Eigen::Vector3d(-0.15, 0.0, 0));
         miniSpot.setStanceVelocity(3, Eigen::Vector3d(-0.15, 0.0, 0));
         control_state = PERFORM_STEP;
@@ -446,7 +459,13 @@ void loop()
 
       case PERFORM_DYNAMIC_GAIT:
         DEBUG_I("PERFORM_DYNAMIC_GAIT");
-        miniSpot.setPeriods(0.4, 0.2, 0.2);
+        // miniSpot.setPeriods(0.4, 0.2, 0.2);
+        // miniSpot.setPeriods(0.8, 0.4, 0.4);
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+        if (control_state == PERFORM_DYNAMIC_GAIT){
+          miniSpot.setGaitState(0, current_time);
+          miniSpot.performDynamicGait(current_time, velocities0);
+        }
         control_state = (control_state == PERFORM_DYNAMIC_GAIT) ? IDLE : PERFORM_DYNAMIC_GAIT;
         break;
 

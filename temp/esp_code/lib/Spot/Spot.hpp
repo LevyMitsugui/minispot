@@ -27,6 +27,23 @@ enum StepState {
     END_STEP
 };
 
+enum GaitState {        // Pair 1 = FL + RR, Pair 2 = FR + RL
+    IDLE_GAIT,          // Idle
+    STARTER_SW1_ST2,    // swing pair 1, stance pair 2 (starter because pair 2 does not have to plan swing phase)
+    ST1_SW2,            // stance pair 1, swing pair 2
+    SW1_ST2             // swing pair 1, stance pair 2
+};
+
+class fsm_t{
+    public:
+	int state, new_state;
+    bool stateChanged;
+
+	// tes - time entering state
+	// tis - time in state
+	double tes, tis;
+};
+
 class Spot
 {
 public:
@@ -82,6 +99,7 @@ public:
     bool isStepDone(int Leg, int Leg2);
     void setPeriods(double totalPeriod, double stancePeriod, double swingPeriod);
     void setStanceVelocity(int Leg, Eigen::Vector3d stanceVelocities);
+    void setGaitState(int state, double &currTimeMillis);
 
     // - - - Testing Space - - -
     bool performStancePhase();
@@ -100,6 +118,7 @@ public:
     SpotModel model;
     double timeHelper[4];  // To be used inside functions that require time memory between cycles
     
+    Eigen::Vector3d feetVelocities[NUM_LEGS]; // TODO maybe will not be used
 
 private:
     double max(double a0, double a1, double a2);
@@ -123,6 +142,7 @@ private:
     double gaitCurrTime[NUM_LEGS];        // ms
 
     StepState stepState[NUM_LEGS];
+    fsm_t gaitState;
 
     Eigen::Vector3d bezPoint[NUM_LEGS];
     Eigen::Vector3d bezControlPoints[NUM_LEGS][BEZIER_CONTROL_POINTS];
@@ -131,7 +151,11 @@ private:
     Eigen::Vector3d stancePoints[NUM_LEGS];
     Eigen::Vector3d stanceVelocities[NUM_LEGS];
 
-    u8 gaitState[NUM_LEGS];
+    u8 gaitState_testing[NUM_LEGS];
+
+    bool setState(fsm_t &stateMachine, double &currTimeMillis);
+    void updateStateTime(fsm_t &stateMachine, double &currTimeMillis);
+    void updateVelocities(int pair, Eigen::Vector3d Velocities[NUM_LEGS]);
 
 };
 

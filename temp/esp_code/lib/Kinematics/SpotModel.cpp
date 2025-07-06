@@ -53,6 +53,11 @@ SpotModel::SpotModel(double shoulder_length,
     T_bf[RL_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, ( foot_y / 2.0), -height));
     T_bf[RR_m] = LieAlgebra::RpToTrans(Rwb, Eigen::Vector3d(-foot_x / 2.0, (-foot_y / 2.0), -height));
 
+    T_wf[FL_m] = T_bf[FL_m];
+    T_wf[FR_m] = T_bf[FR_m];
+    T_wf[RL_m] = T_bf[RL_m];
+    T_wf[RR_m] = T_bf[RR_m];
+
     startingFeetPos[FL_m] = T_bf[FL_m].block<3, 1>(0, 3);
     startingFeetPos[FR_m] = T_bf[FR_m].block<3, 1>(0, 3);
     startingFeetPos[RL_m] = T_bf[RL_m].block<3, 1>(0, 3);

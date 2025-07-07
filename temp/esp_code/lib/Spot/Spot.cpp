@@ -15,13 +15,21 @@ using namespace std;
 
 #define VELOCITY_THRESH 0.001
 #define GAIT_STOP_TIME_MILLIS 100
-#define BEZ_CTRL_PTS_Z_OFFSET Eigen::Vector3d(0.0,0.0,0.08)
+#define FRNT_LEGS_X_OFFSET    Eigen::Vector3d(0.05,0.0,0.0)
+#define BEZ_CTRL_PTS_Z_OFFSET Eigen::Vector3d(0.0,0.0,0.02)
 
 #define BEZIER_CURVE_PATTERN_1 { \
     Eigen::Vector3d(0.0, 0.0, 0.0), \
     Eigen::Vector3d(0.0, 0.0, 0.1), \
     Eigen::Vector3d(0.08, 0.0, 0.1), \
     Eigen::Vector3d(0.05, 0.0, 0.0) \
+}
+
+#define BEZIER_CURVE_PATTERN_2 {    \
+    Eigen::Vector3d(0.0, 0.0, 0.0), \
+    Eigen::Vector3d(0.8, 0.0, 0.1), \
+    Eigen::Vector3d(1.5, 0.0, 1.0), \
+    Eigen::Vector3d(1.0, 0.0, 0.0)  \
 }
 
 
@@ -106,7 +114,7 @@ Eigen::Vector3d Spot::getFootPosition(int Leg){
     return model.T_wf[Leg].block<3,1>(0,3);
 }
 
-Eigen::Vector3d Spot::getRealFootPosition(int leg){
+Eigen::Vector3d Spot::getEstimatedFootPosition(int leg){
     double angles[NUM_JOINTS];
     Eigen::Vector3d pos_hip, pos_body;
 
@@ -396,6 +404,8 @@ double Spot::Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, d
     
     // DEBUG_I("LEG: %d, angles[0]: %f, angles[1]: %f, angles[2]: %f", leg, angles[0], angles[1], angles[2]);
 
+    if (max_speed > MAX_SPEED_RAD) max_speed = MAX_SPEED_RAD;
+
     double s_estimate = Servo_List[leg * 3].GetPoseEstimateRad();
     double e_estimate = Servo_List[leg * 3 + 1].GetPoseEstimateRad();
     double w_estimate = Servo_List[leg * 3 + 2].GetPoseEstimateRad();
@@ -425,12 +435,20 @@ double Spot::Leg_Joint_Speeds_2(double (&speed)[3], double angles[3], int leg, d
     return time; // time in seconds
 }
 
+void Spot::bezierControlPoints(
+    Eigen::Vector3d (&points)[BEZIER_CONTROL_POINTS],
+    Eigen::Vector3d pattern[BEZIER_CONTROL_POINTS],
+    Eigen::Vector3d startingPos,
+    Eigen::Vector3d stancePoints)
+{
+    //points[0] = s
+}
+
 Eigen::Vector3d Spot::bezier(double t,
                            Eigen::Vector3d p0,
                            Eigen::Vector3d p1,
                            Eigen::Vector3d p2,
-                           Eigen::Vector3d p3
-                           )
+                           Eigen::Vector3d p3)
 {
     return pow(1-t, 3)*p0 +
            3*pow(1-t, 2)*t*p1 +
@@ -440,6 +458,8 @@ Eigen::Vector3d Spot::bezier(double t,
 
 void Spot::getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector3d &stanceVelocities){
     Eigen::Vector3d midPoint = model.startingFeetPos[leg];
+    if(leg == FR || leg == FL) midPoint += FRNT_LEGS_X_OFFSET;
+    // midPoint += FRNT_LEGS_X_OFFSET;
     //DEBUG_I("midPoint: %f, %f, %f", midPoint[0], midPoint[1], midPoint[2]);
     stancePoints = (midPoint + (-stanceVelocities * gaitTst)/2);
     //DEBUG_I("stancePoints[0]: %f, %f, %f", stancePoints[0], stancePoints[1], stancePoints[2]);
@@ -451,15 +471,20 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
     Eigen::Vector3d stanceTargetPoint;
     Eigen::Vector3d swingTargetPoint;
 
+    // Update finite state machine timer
     updateStateTime(gaitState, currTimeMillis);
-    DEBUG_I("Gait State: %d time in state(millis): %f", gaitState.state, gaitState.tis);
-    DEBUG_I("1 stateChanged: %d", gaitState.stateChanged);
+    //     state,time(ms),x(m),y(m),z(m)
+    DEBUG_I(",%d,%f,%f,%f,%f", gaitState.state, currTimeMillis,
+        getFootPosition(FL)[0],
+        getFootPosition(FL)[1],
+        getFootPosition(FL)[2]);
 
+    // define state actions (actual outputs, like motor movement, is done later)
     switch (gaitState.state){
  /*0*/  case IDLE_GAIT:
             if (gaitState.stateChanged){
                 for (int i = 0; i < NUM_LEGS; i++){
-                    move_foot(i, model.startingFeetPos[i], 10, true);
+                    move_foot(i, model.startingFeetPos[i], 4.8, true);
                 }
             }
             break;
@@ -476,32 +501,31 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
                 bezControlPoints[0][1] = legStartingPos[0] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[0][2] =   stancePoints[0] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[0][3] =   stancePoints[0];
-                for(int i=0; i<4; i++) { DEBUG_I("bezControlPoints[%d]: %f, %f, %f", i, bezControlPoints[0][i][0], bezControlPoints[0][i][1], bezControlPoints[0][i][2]);}
 
                 getStancePoints(3, stancePoints[3], stanceVelocities[3]);
                 bezControlPoints[3][0] = legStartingPos[3];
                 bezControlPoints[3][1] = legStartingPos[3] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[3][2] =   stancePoints[3] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[3][3] =   stancePoints[3];
-                for(int i=0; i<4; i++) { DEBUG_I("bezControlPoints[%d]: %f, %f, %f", i, bezControlPoints[3][i][0], bezControlPoints[3][i][1], bezControlPoints[3][i][2]);}
             }
             
             // Perform pair 2 stance
             stanceTargetPoint = legStartingPos[1] + (stanceVelocities[1] * gaitState.tis/1000);
-            move_foot(1, stanceTargetPoint, 10, true);
+            move_foot(1, stanceTargetPoint, 4.8, true);
             stanceTargetPoint = legStartingPos[2] + (stanceVelocities[2] * gaitState.tis/1000);
-            move_foot(2, stanceTargetPoint, 10, true);
+            move_foot(2, stanceTargetPoint, 4.8, true);
 
             // Perform pair 1 swing
             t_swing = gaitState.tis/(gaitTsw*1000);
-            DEBUG_I("t_swing: %f", t_swing);
+            if (t_swing > 1.0) t_swing = 1.0;
+
             for(int i = 0; i<4; i += 3){
                 swingTargetPoint = bezier(t_swing,
                                   bezControlPoints[i][0],
                                   bezControlPoints[i][1],
                                   bezControlPoints[i][2],
                                   bezControlPoints[i][3]);
-                move_foot(i, swingTargetPoint, 10, true);
+                move_foot(i, swingTargetPoint, 4.8, true);
             }
 
             break;
@@ -517,30 +541,30 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
                 bezControlPoints[1][1] = legStartingPos[1] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[1][2] =   stancePoints[1] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[1][3] =   stancePoints[1];
-                for(int i=0; i<4; i++) { DEBUG_I("bezControlPoints[%d]: %f, %f, %f", i, bezControlPoints[1][i][0], bezControlPoints[1][i][1], bezControlPoints[1][i][2]);}
 
                 getStancePoints(2, stancePoints[2], stanceVelocities[2]);
                 bezControlPoints[2][0] = legStartingPos[2];
                 bezControlPoints[2][1] = legStartingPos[2] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[2][2] =   stancePoints[2] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[2][3] =   stancePoints[2];
-                for(int i=0; i<4; i++) { DEBUG_I("bezControlPoints[%d]: %f, %f, %f", i, bezControlPoints[2][i][0], bezControlPoints[2][i][1], bezControlPoints[2][i][2]);}
             }
             // Perform pair 1 stance
             stanceTargetPoint = stancePoints[0] + (stanceVelocities[0] * gaitState.tis/1000);
-            move_foot(0, stanceTargetPoint, 10, true);
+            move_foot(0, stanceTargetPoint, 4.8, true);
             stanceTargetPoint = stancePoints[3] + (stanceVelocities[3] * gaitState.tis/1000);
-            move_foot(3, stanceTargetPoint, 10, true);
+            move_foot(3, stanceTargetPoint, 4.8, true);
 
             // Perform pair 2 swing
             t_swing = gaitState.tis/(gaitTsw*1000);
+            if (t_swing > 1.0) t_swing = 1.0;
+            
             for(int i = 1; i<3; i += 1){
                 swingTargetPoint = bezier(t_swing,
                                   bezControlPoints[i][0],
                                   bezControlPoints[i][1],
                                   bezControlPoints[i][2],
                                   bezControlPoints[i][3]);
-                move_foot(i, swingTargetPoint, 10, true);
+                move_foot(i, swingTargetPoint, 4.8, true);
             }
             break;
  /*3*/  case SW1_ST2:
@@ -555,35 +579,35 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
                 bezControlPoints[0][1] = legStartingPos[0] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[0][2] =   stancePoints[0] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[0][3] =   stancePoints[0];
-                for(int i=0; i<4; i++) { DEBUG_I("bezControlPoints[%d]: %f, %f, %f", i, bezControlPoints[0][i][0], bezControlPoints[0][i][1], bezControlPoints[0][i][2]);}
-
+                
                 getStancePoints(3, stancePoints[3], stanceVelocities[3]);
                 bezControlPoints[3][0] = legStartingPos[3];
                 bezControlPoints[3][1] = legStartingPos[3] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[3][2] =   stancePoints[3] + BEZ_CTRL_PTS_Z_OFFSET;
                 bezControlPoints[3][3] =   stancePoints[3];
-                for(int i=0; i<4; i++) { DEBUG_I("bezControlPoints[%d]: %f, %f, %f", i, bezControlPoints[3][i][0], bezControlPoints[3][i][1], bezControlPoints[3][i][2]);}
             }
             // Perform pair 1 swing
             t_swing = gaitState.tis/(gaitTsw*1000);
+            if (t_swing > 1.0) t_swing = 1.0;
+            
             for (int i = 0; i < 4; i += 3){
                 swingTargetPoint = bezier(t_swing,
                                 bezControlPoints[i][0],
                                 bezControlPoints[i][1],
                                 bezControlPoints[i][2],
                                 bezControlPoints[i][3]);
-                move_foot(i, swingTargetPoint, 10, true);
+                move_foot(i, swingTargetPoint, 4.8, true);
             }
 
             // Perform pair 2 stance
             stanceTargetPoint = stancePoints[1] + stanceVelocities[1] * gaitState.tis/1000;
-            move_foot(1, stanceTargetPoint, 10, true);
+            move_foot(1, stanceTargetPoint, 4.8, true);
             stanceTargetPoint = stancePoints[2] + stanceVelocities[2] * gaitState.tis/1000;
-            move_foot(2, stanceTargetPoint, 10, true);
+            move_foot(2, stanceTargetPoint, 4.8, true);
             break;
     }
 
-    // Compute next states
+    // Compute next state
     if(gaitState.state == IDLE_GAIT){
         if (gaitState.tis > GAIT_STOP_TIME_MILLIS){
             for(int i = 0; i < NUM_LEGS; i++){
@@ -625,9 +649,8 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
         }
     }
 
-
+    // Update: state ➞ new state
     setState(gaitState, currTimeMillis);
-    DEBUG_I("2 stateChanged: %d", gaitState.stateChanged);
 
     // Update servos
     //  ↳done in main loop !!

@@ -56,7 +56,7 @@ double height = 0.145;
 bool log_toggle = false;
 
 int cycle = 0;
-double cycle_time = 5; // millis
+double cycle_time = 30; // millis
 double current_time = 0;
 double last_time = 0;
 float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
@@ -166,13 +166,8 @@ bool stance_test = false;
 // double bezPeriodTime = 0;
 // Eigen::Vector3d points_bf [4];
 
-#define D_STANCE 10.0 / 100.0
-#define T_GAIT 0.8
-
-// Eigen::Vector3d velocities[4] = {Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
-//                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
-//                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
-//                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0)};
+#define D_STANCE 1.0 / 100.0
+#define T_GAIT 0.5
 
 Eigen::Vector3d velocities[4] = {Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
@@ -562,7 +557,7 @@ void loop()
 void printFootPos(int leg){
   Eigen::Vector3d footPosition = miniSpot.getFootPosition(leg);
   DEBUG_I("Foot Position: %f, %f, %f", footPosition[0], footPosition[1], footPosition[2]);
-  footPosition = miniSpot.getRealFootPosition(leg);
+  footPosition = miniSpot.getEstimatedFootPosition(leg);
   DEBUG_I("Foot Position: %f, %f, %f - REAL", footPosition[0], footPosition[1], footPosition[2]);
 }
 

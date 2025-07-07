@@ -58,7 +58,7 @@ public:
     void getLoadString(char (& LoadString)[256],long time);
     void getPositionString(char(& PosString)[256],long time);
     Eigen::Vector3d getFootPosition(int Leg);
-    Eigen::Vector3d getRealFootPosition(int leg);
+    Eigen::Vector3d getEstimatedFootPosition(int leg);
 
     void perform_gait_singular(int leg, int nFrames, float (*posFrames)[3], double timeInterval_us);
     void perform_gait(int nFrames, float (*posFrames)[19][3], double timeInterval_us, int cycles);
@@ -83,6 +83,12 @@ public:
                        const double &r_shoulder_stance, const double &r_elbow_stance, const double &r_wrist_stance, double &speed);
     void straight_calibration_stance();
     void prone_calibration_stance();
+
+    void bezierControlPoints(
+        Eigen::Vector3d (&points)[BEZIER_CONTROL_POINTS],
+        Eigen::Vector3d pattern[BEZIER_CONTROL_POINTS],
+        Eigen::Vector3d startingPos,
+        Eigen::Vector3d stancePoints);
 
     Eigen::Vector3d bezier(double t,
                            Eigen::Vector3d p0,

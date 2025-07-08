@@ -1,78 +1,81 @@
 #include "SerialHandler.hpp"
 
-SerialHandler::SerialHandler():
-    callback_enabled(false),
-    enCallbackChar('>'){}
+SerialHandler::SerialHandler() : callback_enabled(false),
+                                 enCallbackChar('>') {}
 
-SerialHandler::SerialHandler(bool callback_enabled, char enCallbackChar):callback_enabled(false), enCallbackChar(enCallbackChar){}
+SerialHandler::SerialHandler(bool callback_enabled, char enCallbackChar) : callback_enabled(false), enCallbackChar(enCallbackChar) {}
 
-void SerialHandler::HandleSerialEvent(char * inputBuffer, int & bufferPos, Callback cb, PI_COMMAND & pi_command, OFFSET_LEAN_FRAME & offset_lean_frame, SERVO_FRAME & servo_frame)
+void SerialHandler::HandleSerialEvent(char *inputBuffer, int &bufferPos, Callback cb, PI_COMMAND &pi_command, OFFSET_LEAN_FRAME &offset_lean_frame, SERVO_FRAME &servo_frame)
 {
-    if (inputBuffer == NULL  )
-    {
-        Serial.println("[ERROR] Invalid input buffer");
-        return;
-    }
-    while (Serial.available())
-    {
-        char c = Serial.read();
-        
-        // Serial.print("Received: ");
-        // Serial.print(c);
-        // Serial.print("  bufferPos: ");
-        // Serial.println(bufferPos);
-        
-        if (c == ' ') ESP.restart();
+  if (inputBuffer == NULL)
+  {
+    Serial.println("[ERROR] Invalid input buffer");
+    return;
+  }
+  while (Serial.available())
+  {
+    char c = Serial.read();
 
-        if (c == '\n' && !callback_enabled)
-        {
-            inputBuffer[bufferPos] = '\0'; // Null-terminate string
-            if (bufferPos > 0)
-            {
-                if (inputBuffer[0] == '<')
-                {
-                    processPiCommand(inputBuffer + 1, pi_command);
-                }
-                else if (inputBuffer[0] == enCallbackChar)
-                { // handle stream mode
-                    Serial.println("ESP/STREAM:Callback Enabled");
-                    callback_enabled = true;
-                }
-                else if (inputBuffer[0] == '/' && inputBuffer[1] == 'k')
-                {
-                    ESP.restart();
-                } else {
-                    Serial.print("[ERROR] Unknown command prefix, function got: ");
-                    for(int i = 0; i < bufferPos; i++){
-                      Serial.print(inputBuffer[i]);
-                    }
-                    Serial.println();
+    // Serial.print("Received: ");
+    // Serial.print(c);
+    // Serial.print("  bufferPos: ");
+    // Serial.println(bufferPos);
 
-                }
-            }
-            bufferPos = 0; // Reset buffer
-        }
-        else if (!callback_enabled && (bufferPos < COMMAND_BUFFER_SIZE - 1))
+    if (c == ' ')
+      ESP.restart();
+
+    if (c == '\n' && !callback_enabled)
+    {
+      inputBuffer[bufferPos] = '\0'; // Null-terminate string
+      if (bufferPos > 0)
+      {
+        if (inputBuffer[0] == '<')
         {
-            inputBuffer[bufferPos++] = c;
+          processPiCommand(inputBuffer + 1, pi_command);
         }
-        else if (callback_enabled)
+        else if (inputBuffer[0] == enCallbackChar)
+        { // handle stream mode
+          Serial.println("ESP/STREAM:Callback Enabled");
+          callback_enabled = true;
+        }
+        else if (inputBuffer[0] == '/' && inputBuffer[1] == 'k')
         {
-            if (!cb(c))
-            {
-                Serial.println("ESP/STREAM:Callback Disabled");
-                callback_enabled = false;
-            } 
+          ESP.restart();
         }
         else
         {
-            Serial.println("[ERROR] Command too long");
-            bufferPos = 0;
+          Serial.print("[ERROR] Unknown command prefix, function got: ");
+          for (int i = 0; i < bufferPos; i++)
+          {
+            Serial.print(inputBuffer[i]);
+          }
+          Serial.println();
         }
+      }
+      bufferPos = 0; // Reset buffer
     }
+    else if (!callback_enabled && (bufferPos < COMMAND_BUFFER_SIZE - 1))
+    {
+      inputBuffer[bufferPos++] = c;
+    }
+    else if (callback_enabled)
+    {
+      if (!cb(c))
+      {
+        Serial.println("ESP/STREAM:Callback Disabled");
+        callback_enabled = false;
+      }
+    }
+    else
+    {
+      Serial.println("[ERROR] Command too long");
+      bufferPos = 0;
+    }
+  }
 }
 
-void SerialHandler::processPiCommand(const char *cmd, PI_COMMAND & pi_command){
+void SerialHandler::processPiCommand(const char *cmd, PI_COMMAND &pi_command)
+{
   strncpy(pi_command.package, cmd, COMMAND_BUFFER_SIZE);
   pi_command.package[COMMAND_BUFFER_SIZE - 1] = '\0';
 
@@ -80,7 +83,8 @@ void SerialHandler::processPiCommand(const char *cmd, PI_COMMAND & pi_command){
   pi_command.command = atoi(token);
   pi_command.new_command = true;
 }
-int SerialHandler::parseServoFrame(char *buf, SERVO_FRAME & servo_frame){
+int SerialHandler::parseServoFrame(char *buf, SERVO_FRAME &servo_frame)
+{
   int i = 0;
   int idx = 0;
 
@@ -107,7 +111,8 @@ int SerialHandler::parseServoFrame(char *buf, SERVO_FRAME & servo_frame){
   return 0;
 }
 
-int SerialHandler::parseOffsetLean(char * buf, OFFSET_LEAN_FRAME & offset_lean_frame){
+int SerialHandler::parseOffsetLean(char *buf, OFFSET_LEAN_FRAME &offset_lean_frame)
+{
   char *token = strtok(buf, ",");
   for (int i = 0; i < 3; i++)
   {

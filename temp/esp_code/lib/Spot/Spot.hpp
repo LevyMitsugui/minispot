@@ -12,6 +12,7 @@
 #define POS_ERROR_THRESHOLD 0.1 // degrees
 
 #define BEZIER_CONTROL_POINTS 4 // cubic bezier curve
+#define GAIT_PATH_POINTS 18 // (HAS TO BE EVEN) -> 9 for stance and 9 for swing
 
 enum ServoIndex {
     FL_SHOULDER, FL_ELBOW, FL_WRIST, // leg 0
@@ -125,6 +126,7 @@ public:
     double timeHelper[4];  // To be used inside functions that require time memory between cycles
     
     Eigen::Vector3d feetVelocities[NUM_LEGS]; // TODO maybe will not be used
+    Eigen::Vector3d gaitPathPoints[GAIT_PATH_POINTS];
 
 private:
     double max(double a0, double a1, double a2);

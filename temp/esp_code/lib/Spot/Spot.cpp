@@ -16,7 +16,7 @@ using namespace std;
 #define VELOCITY_THRESH 0.001
 #define GAIT_STOP_TIME_MILLIS 100
 #define FRNT_LEGS_X_OFFSET    Eigen::Vector3d(0.05,0.0,0.0)
-#define BEZ_CTRL_PTS_Z_OFFSET Eigen::Vector3d(0.0,0.0,0.02)
+#define BEZ_CTRL_PTS_Z_OFFSET Eigen::Vector3d(0.0,0.0,0.04)
 
 #define BEZIER_CURVE_PATTERN_1 { \
     Eigen::Vector3d(0.0, 0.0, 0.0), \
@@ -29,6 +29,14 @@ using namespace std;
     Eigen::Vector3d(0.0, 0.0, 0.0), \
     Eigen::Vector3d(0.8, 0.0, 0.1), \
     Eigen::Vector3d(1.5, 0.0, 1.0), \
+    Eigen::Vector3d(1.0, 0.0, 0.0)  \
+}
+
+// To be used in dynamic gait stance phase
+#define BEZIER_CURVE_PATTERN_3 {    \
+    Eigen::Vector3d(0.0, 0.0, 0.0), \
+    Eigen::Vector3d(0.1, 0.0, 0.1), \
+    Eigen::Vector3d(0.9, 0.0, 1.0), \
     Eigen::Vector3d(1.0, 0.0, 0.0)  \
 }
 
@@ -59,10 +67,11 @@ void Spot::Init()
         this-> legStartingPos[i] = Eigen::Vector3d::Zero(); // TODO Use forward kinematics
         this-> stepState[i] = IDLE_STEP;
     }
-    Eigen::Vector3d bP_[BEZIER_CONTROL_POINTS] = BEZIER_CURVE_PATTERN_1;
-    // for(int i = 0; i < BEZIER_CONTROL_POINTS; i++) { 
-    //     this->bezControlPoints[i] = bP_[i]; 
-    // }
+    Eigen::Vector3d swing[BEZIER_CONTROL_POINTS] = BEZIER_CURVE_PATTERN_1;
+    Eigen::Vector3d stance[BEZIER_CONTROL_POINTS] = BEZIER_CURVE_PATTERN_3;
+    
+    generatePath(gaitPathPoints, swing, stance);
+
     pose();
 }
 
@@ -309,8 +318,14 @@ void Spot::perform_gait_no_blocking(float (*posFrames)[19][3], bool is_first_fra
     double currentTime = millis();
     double dt = timeHelper[1]; // timeHelper[1] will act as the time to finish the last frame (in milliseconds)
     double dt_ = 0.0;
-    DEBUG_I("Current Frame: %d", frame);
-    DEBUG_I("To next Frame: %f / %f", (currentTime - timeHelper[0]), dt);
+    // DEBUG_I("Current Frame: %d", frame);
+    // DEBUG_I("To next Frame: %f / %f", (currentTime - timeHelper[0]), dt);
+
+    DEBUG_I(",%f,%f,%f,%f", currentTime,
+        getFootPosition(FL)[0],
+        getFootPosition(FL)[1],
+        getFootPosition(FL)[2]);
+
 
     if (is_first_frame){
         timeHelper[0] = currentTime; // timeHelper[0] will act as the previous time variable
@@ -326,9 +341,9 @@ void Spot::perform_gait_no_blocking(float (*posFrames)[19][3], bool is_first_fra
         dt = (dt > dt_) ? dt : dt_;
         dt_ = move_foot(RR, vecPos4, SPEED_LAST_EDITION);
         dt = (dt > dt_) ? dt : dt_;
-        DEBUG_I("dt : %f seconds", dt);
+        // DEBUG_I("dt : %f seconds", dt);
         timeHelper[1] = dt*1000; // convert it to milliseconds
-        DEBUG_I("timeHelper[1]: %f milliseconds", timeHelper[1]);
+        // DEBUG_I("timeHelper[1]: %f milliseconds", timeHelper[1]);
 
     } else if (frame < 19 && (currentTime - timeHelper[0]) > dt){
         timeHelper[0] = currentTime;
@@ -343,11 +358,11 @@ void Spot::perform_gait_no_blocking(float (*posFrames)[19][3], bool is_first_fra
         dt = (dt > dt_) ? dt : dt_;
         dt_ = move_foot(RR, vecPos4, SPEED_LAST_EDITION);
         dt = (dt > dt_) ? dt : dt_;
-        DEBUG_I("dt : %f seconds", dt);
+        // DEBUG_I("dt : %f seconds", dt);
         timeHelper[1] = dt*1000; // convert it to milliseconds
-        DEBUG_I("timeHelper[1]: %f milliseconds", timeHelper[1]);
+        // DEBUG_I("timeHelper[1]: %f milliseconds", timeHelper[1]);
         frame = (frame >= 17) ? 1 : frame + 1;
-        DEBUG_I("Next Frame: %d", frame);
+        // DEBUG_I("Next Frame: %d", frame);
     }
 }
 
@@ -459,11 +474,51 @@ Eigen::Vector3d Spot::bezier(double t,
 void Spot::getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector3d &stanceVelocities){
     Eigen::Vector3d midPoint = model.startingFeetPos[leg];
     if(leg == FR || leg == FL) midPoint += FRNT_LEGS_X_OFFSET;
+    
     // midPoint += FRNT_LEGS_X_OFFSET;
     //DEBUG_I("midPoint: %f, %f, %f", midPoint[0], midPoint[1], midPoint[2]);
     stancePoints = (midPoint + (-stanceVelocities * gaitTst)/2);
     //DEBUG_I("stancePoints[0]: %f, %f, %f", stancePoints[0], stancePoints[1], stancePoints[2]);
     //stancePoints[1] = (midPoint + (stanceVelocities[0] * gaitTst)/2);
+}
+
+void Spot::generatePath(Eigen::Vector3d (&outputPathPoints)[GAIT_PATH_POINTS], Eigen::Vector3d swingCtrlPoints[BEZIER_CONTROL_POINTS], Eigen::Vector3d stanceCtrlPoints[BEZIER_CONTROL_POINTS]){
+    int pointsPerBezier = GAIT_PATH_POINTS / 2;
+    double t = 0.0;
+    for(int i = 0; i < pointsPerBezier; i++){
+        t = (double)i/pointsPerBezier; // TODO check if this cast is right
+        outputPathPoints[i] = bezier(t,
+                                    swingCtrlPoints[0],
+                                    swingCtrlPoints[1],
+                                    swingCtrlPoints[2],
+                                    swingCtrlPoints[3]);
+    }
+    for(int i = 0; i < pointsPerBezier; i++){
+        t = (double)i/pointsPerBezier; // TODO check if this cast is right
+        outputPathPoints[i+pointsPerBezier] = bezier(t,
+                                                    stanceCtrlPoints[0],
+                                                    stanceCtrlPoints[1],
+                                                    stanceCtrlPoints[2],
+                                                    stanceCtrlPoints[3]);
+    }
+}
+
+void Spot::getSpeedQuaternion(Eigen::Quaterniond (&q)[NUM_LEGS]){
+    double angle = 0.0;
+    for(int i = 0; i < NUM_LEGS; i++){
+        angle = atan2(stanceVelocities[i].x(), stanceVelocities[i].y());
+        q[i] = Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ());
+    }
+}
+
+//Admits the velocities are already updated and stored in stanceVelocities
+void Spot::getNewPathPoint(Eigen::Vector3d (&outputPoints)[NUM_LEGS], Eigen::Vector3d bezierPoint, Eigen::Vector3d midPoints[NUM_LEGS]){
+    //compute, for this iteration (iteration != cycle), the new path point to be reached
+    Eigen::Quaternionf q[NUM_LEGS];
+    getSpeedQuaternion(q);
+    for(int i = 0; i < NUM_LEGS; i++){
+        outputPoints[i] = (q[i] * inputPoints) + midPoints;
+    }
 }
 
 bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]){
@@ -484,7 +539,7 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
  /*0*/  case IDLE_GAIT:
             if (gaitState.stateChanged){
                 for (int i = 0; i < NUM_LEGS; i++){
-                    move_foot(i, model.startingFeetPos[i], 4.8, true);
+                    move_foot(i, model.startingFeetPos[i], 4.8, false);//true);
                 }
             }
             break;
@@ -511,9 +566,9 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
             
             // Perform pair 2 stance
             stanceTargetPoint = legStartingPos[1] + (stanceVelocities[1] * gaitState.tis/1000);
-            move_foot(1, stanceTargetPoint, 4.8, true);
+            move_foot(1, stanceTargetPoint, 4.8, false);//true);
             stanceTargetPoint = legStartingPos[2] + (stanceVelocities[2] * gaitState.tis/1000);
-            move_foot(2, stanceTargetPoint, 4.8, true);
+            move_foot(2, stanceTargetPoint, 4.8, false);//true);
 
             // Perform pair 1 swing
             t_swing = gaitState.tis/(gaitTsw*1000);
@@ -525,7 +580,7 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
                                   bezControlPoints[i][1],
                                   bezControlPoints[i][2],
                                   bezControlPoints[i][3]);
-                move_foot(i, swingTargetPoint, 4.8, true);
+                move_foot(i, swingTargetPoint, 4.8, false);//true);
             }
 
             break;
@@ -550,9 +605,9 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
             }
             // Perform pair 1 stance
             stanceTargetPoint = stancePoints[0] + (stanceVelocities[0] * gaitState.tis/1000);
-            move_foot(0, stanceTargetPoint, 4.8, true);
+            move_foot(0, stanceTargetPoint, 4.8, false);//true);
             stanceTargetPoint = stancePoints[3] + (stanceVelocities[3] * gaitState.tis/1000);
-            move_foot(3, stanceTargetPoint, 4.8, true);
+            move_foot(3, stanceTargetPoint, 4.8, false);//true);
 
             // Perform pair 2 swing
             t_swing = gaitState.tis/(gaitTsw*1000);
@@ -564,7 +619,7 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
                                   bezControlPoints[i][1],
                                   bezControlPoints[i][2],
                                   bezControlPoints[i][3]);
-                move_foot(i, swingTargetPoint, 4.8, true);
+                move_foot(i, swingTargetPoint, 4.8, false);//true);
             }
             break;
  /*3*/  case SW1_ST2:
@@ -596,14 +651,14 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
                                 bezControlPoints[i][1],
                                 bezControlPoints[i][2],
                                 bezControlPoints[i][3]);
-                move_foot(i, swingTargetPoint, 4.8, true);
+                move_foot(i, swingTargetPoint, 4.8, false);//true);
             }
 
             // Perform pair 2 stance
             stanceTargetPoint = stancePoints[1] + stanceVelocities[1] * gaitState.tis/1000;
-            move_foot(1, stanceTargetPoint, 4.8, true);
+            move_foot(1, stanceTargetPoint, 4.8, false);//true);
             stanceTargetPoint = stancePoints[2] + stanceVelocities[2] * gaitState.tis/1000;
-            move_foot(2, stanceTargetPoint, 4.8, true);
+            move_foot(2, stanceTargetPoint, 4.8, false);//true);
             break;
     }
 

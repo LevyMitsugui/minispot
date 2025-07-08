@@ -56,7 +56,7 @@ double height = 0.145;
 bool log_toggle = false;
 
 int cycle = 0;
-double cycle_time = 30; // millis
+double cycle_time = 22; // millis
 double current_time = 0;
 double last_time = 0;
 float speedShoulder, speedElbow, speedWrist, speedcalc, positionShoulder, positionElbow, positionWrist, loadShoulder, loadElbow, loadWrist = 0;
@@ -167,7 +167,7 @@ bool stance_test = false;
 // Eigen::Vector3d points_bf [4];
 
 #define D_STANCE 1.0 / 100.0
-#define T_GAIT 0.5
+#define T_GAIT 0.7
 
 Eigen::Vector3d velocities[4] = {Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
                                  Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),

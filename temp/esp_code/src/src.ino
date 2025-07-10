@@ -341,7 +341,7 @@ void loop()
           Rth = atan2(Ry,Rx);
 
           Vt = W * sqrt(pow(Rx,2) + pow(Ry,2));
-          Vx = V + Vt * sin(Rth);
+          Vx = V - Vt * sin(Rth);
           Vy = Vn+ Vt * cos(Rth);
 
           if (fabs(Vx > 0.32)) Vx = (Vx < 0) ? -0.32 : 0.32;
@@ -677,11 +677,11 @@ bool control_speeds(char c) {
     break;
 
     case 'j':
-      W += feet_stream_control.step*10;
+      W += feet_stream_control.step*2;
     break;
 
     case 'l':
-      W -= feet_stream_control.step*10;
+      W -= feet_stream_control.step*2;
     break;
 
     case 'u':

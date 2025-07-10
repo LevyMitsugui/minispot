@@ -13,33 +13,45 @@ using namespace std;
 #define STD_SPEED_RAD 0.8 // rad/s
 #define SPEED_LAST_EDITION 30 //0.02 //1.149822906 // 2.299645812 // rad/s
 
-#define VELOCITY_THRESH 0.001
+#define VELOCITY_THRESH 0.001 // m/s
 #define GAIT_STOP_TIME_MILLIS 100
-#define FRNT_LEGS_X_OFFSET    Eigen::Vector3d(0.05,0.0,0.0)
-#define BEZ_CTRL_PTS_Z_OFFSET Eigen::Vector3d(0.0,0.0,0.04)
+#define STD_MAX_STEP_H 0.015 // meters
+#define FRNT_LEGS_X_OFFSET    Eigen::Vector3d(0.05,0.0,0.0) // meters
+#define BEZ_CTRL_PTS_Z_OFFSET Eigen::Vector3d(0.0,0.0,0.04) // meters
 
+// Patterns must be in zx plane. the pattern will be scaled by the parameters used in the functions.
+// values not bound in [-0.5,0.5] endup in unreachable positions
+// To be used in dynamic gait swing phase
 #define BEZIER_CURVE_PATTERN_1 { \
-    Eigen::Vector3d(0.0, 0.0, 0.0), \
-    Eigen::Vector3d(0.0, 0.0, 0.1), \
-    Eigen::Vector3d(0.08, 0.0, 0.1), \
-    Eigen::Vector3d(0.05, 0.0, 0.0) \
+    Eigen::Vector3d(-0.5, 0.0, 0.0), \
+    Eigen::Vector3d(-0.5, 0.0, 1.0), \
+    Eigen::Vector3d(0.5, 0.0, 1.0), \
+    Eigen::Vector3d(0.5, 0.0, 0.0)  \
 }
 
+// To be used in dynamic gait swing phase
 #define BEZIER_CURVE_PATTERN_2 {    \
-    Eigen::Vector3d(0.0, 0.0, 0.0), \
-    Eigen::Vector3d(0.8, 0.0, 0.1), \
-    Eigen::Vector3d(1.5, 0.0, 1.0), \
-    Eigen::Vector3d(1.0, 0.0, 0.0)  \
+    Eigen::Vector3d(-0.5, 0.0, 0.0), \
+    Eigen::Vector3d(0.1, 0.0, 1.0), \
+    Eigen::Vector3d(0.8, 0.0, 0.3), \
+    Eigen::Vector3d(0.5, 0.0, 0.0)  \
 }
 
-// To be used in dynamic gait stance phase
-#define BEZIER_CURVE_PATTERN_3 {    \
-    Eigen::Vector3d(0.0, 0.0, 0.0), \
-    Eigen::Vector3d(0.1, 0.0, 0.1), \
-    Eigen::Vector3d(0.9, 0.0, 1.0), \
-    Eigen::Vector3d(1.0, 0.0, 0.0)  \
+// To be used in dynamic gait stance phase. notice, here, the control points are reversed
+#define BEZIER_CURVE_PATTERN_3 {\
+    Eigen::Vector3d(0.5, 0.0, 0.0), \
+    Eigen::Vector3d(0.4, 0.0, 0.1), \
+    Eigen::Vector3d(-0.4, 0.0, 0.1), \
+    Eigen::Vector3d(-0.5, 0.0, 0.0)  \
 }
 
+// To be used in dynamic gait stance phase. notice, here, the control points are reversed
+#define BEZIER_CURVE_PATTERN_4 {\
+    Eigen::Vector3d(0.5, 0.0, 0.0), \
+    Eigen::Vector3d(0.4, 0.0, -0.1), \
+    Eigen::Vector3d(-0.4, 0.0, -0.1), \
+    Eigen::Vector3d(-0.5, 0.0, 0.0)  \
+}
 
 Spot::Spot()
 {
@@ -68,7 +80,7 @@ void Spot::Init()
         this-> stepState[i] = IDLE_STEP;
     }
     Eigen::Vector3d swing[BEZIER_CONTROL_POINTS] = BEZIER_CURVE_PATTERN_1;
-    Eigen::Vector3d stance[BEZIER_CONTROL_POINTS] = BEZIER_CURVE_PATTERN_3;
+    Eigen::Vector3d stance[BEZIER_CONTROL_POINTS] = BEZIER_CURVE_PATTERN_4;
     
     generatePath(gaitPathPoints, swing, stance);
 
@@ -482,8 +494,8 @@ void Spot::getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector
     //stancePoints[1] = (midPoint + (stanceVelocities[0] * gaitTst)/2);
 }
 
-void Spot::generatePath(Eigen::Vector3d (&outputPathPoints)[GAIT_PATH_POINTS], Eigen::Vector3d swingCtrlPoints[BEZIER_CONTROL_POINTS], Eigen::Vector3d stanceCtrlPoints[BEZIER_CONTROL_POINTS]){
-    int pointsPerBezier = GAIT_PATH_POINTS / 2;
+void Spot::generatePath(Eigen::Vector3d (&outputPathPoints)[GAIT_PATH_FRAMES], Eigen::Vector3d swingCtrlPoints[BEZIER_CONTROL_POINTS], Eigen::Vector3d stanceCtrlPoints[BEZIER_CONTROL_POINTS]){
+    int pointsPerBezier = GAIT_PATH_FRAMES / 2;
     double t = 0.0;
     for(int i = 0; i < pointsPerBezier; i++){
         t = (double)i/pointsPerBezier; // TODO check if this cast is right
@@ -501,24 +513,238 @@ void Spot::generatePath(Eigen::Vector3d (&outputPathPoints)[GAIT_PATH_POINTS], E
                                                     stanceCtrlPoints[2],
                                                     stanceCtrlPoints[3]);
     }
-}
-
-void Spot::getSpeedQuaternion(Eigen::Quaterniond (&q)[NUM_LEGS]){
-    double angle = 0.0;
-    for(int i = 0; i < NUM_LEGS; i++){
-        angle = atan2(stanceVelocities[i].x(), stanceVelocities[i].y());
-        q[i] = Eigen::AngleAxisd(angle, Eigen::Vector3d::UnitZ());
+    for (int i = 0; i < GAIT_PATH_FRAMES; i++){
+        DEBUG_I(",%f,%f,%f", outputPathPoints[i].x(), outputPathPoints[i].y(), outputPathPoints[i].z());
     }
 }
+Eigen::Vector3d Spot::rotateZToAlign(Eigen::Vector3d& V, Eigen::Vector3d& vReference) {
+  // Calculate angle to align V1.xy to Vr.xy
+  double theta = atan2(vReference.y(), vReference.x());
 
-//Admits the velocities are already updated and stored in stanceVelocities
-void Spot::getNewPathPoint(Eigen::Vector3d (&outputPoints)[NUM_LEGS], Eigen::Vector3d bezierPoint, Eigen::Vector3d midPoints[NUM_LEGS]){
-    //compute, for this iteration (iteration != cycle), the new path point to be reached
-    Eigen::Quaternionf q[NUM_LEGS];
-    getSpeedQuaternion(q);
-    for(int i = 0; i < NUM_LEGS; i++){
-        outputPoints[i] = (q[i] * inputPoints) + midPoints;
+  // Precompute trig
+  double c = cos(theta);
+  double s = sin(theta);
+
+  // Apply 2D rotation in XY plane
+  Eigen::Vector3d V_rot;
+  V_rot.x() = V.x() * c - V.y() * s;
+  V_rot.y() = V.x() * s + V.y() * c;
+  V_rot.z() = V.z();
+
+  return V_rot;
+}
+Eigen::Vector3d Spot::getNewPathPoint(int leg, int frame, double stepHeight, Eigen::Vector3d midPointOffset){ 
+    if (frame < 0) frame = 0;
+    else if (frame >= GAIT_PATH_FRAMES) frame = GAIT_PATH_FRAMES-1;
+
+    Eigen::Vector3d velocity = stanceVelocities[leg];
+
+    //first, scale to correctly perform velocity
+    double scaleFactor = 1.0;
+    scaleFactor = fabs(velocity.norm()) * gaitTst;
+
+    // DEBUG_I("leg: %d", leg);
+    // DEBUG_I("gait: %f", gaitTst);
+    // DEBUG_I("norm: %f", velocity.norm());
+    // DEBUG_I("fabs: %f", fabs(velocity.norm()));
+    // DEBUG_I("scaleFactor: %f", scaleFactor);
+    //second, get quartenion,
+
+    //third, apply scale and rotation and translate it to the mid point (reference point to the gait path)
+    Eigen::Vector3d scaled = Eigen::Vector3d(
+                gaitPathPoints[frame].x() * scaleFactor,
+                gaitPathPoints[frame].y(),
+                gaitPathPoints[frame].z() * stepHeight);
+    Eigen::Vector3d midPoint = model.startingFeetPos[leg];
+    
+    // DEBUG_I("scaled: %f, %f, %f", scaled.x(), scaled.y(), scaled.z());
+    // DEBUG_I("midPoint: %f, %f, %f", midPoint.x(), midPoint.y(), midPoint.z());
+
+    Eigen::Vector3d ret = rotateZToAlign(scaled,velocity) + midPoint + midPointOffset;
+    // DEBUG_I("ret: %f, %f, %f", ret.x(), ret.y(), ret.z());
+
+    return ret;
+}
+
+bool Spot::performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]){
+    double period = 0.0;
+    Eigen::Vector3d stanceTargetPoint;
+    Eigen::Vector3d swingTargetPoint;
+
+    // Update finite state machine timer
+    updateStateTime(gaitState, currTimeMillis);
+    //     state,time(ms),x(m),y(m),z(m)
+    DEBUG_I(",%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d", gaitState.state, currTimeMillis,
+                    getFootPosition(RR)[0],
+                    getFootPosition(RR)[1],
+                    getFootPosition(RR)[2],
+                    currTimeMillis, prevTime, currTimeMillis - prevTime, periodUpdate,
+                    frameIter[0], frameIter[1], frameIter[2], frameIter[3]);
+
+    // define state actions (actual outputs, like motor movement, is done later)
+    switch (gaitState.state){
+ /*0*/  case IDLE_GAIT:
+            if (gaitState.stateChanged){
+                for (int i = 0; i < NUM_LEGS; i++){
+                    move_foot(i, model.startingFeetPos[i], 4.8, false);//true);
+                }
+            }
+            break;
+ /*1*/  case STARTER_SW1_ST2:
+            // Plan only stance phase for pair 2 (fr + rl)
+            // Plan whole step for pair 1 (fl + rr)
+            if (gaitState.stateChanged){
+                updateVelocities(0, Velocities);
+                prevTime = currTimeMillis;
+                periodUpdate = gaitT/GAIT_PATH_FRAMES *1000;
+                frameIter[FL] = 0;
+                frameIter[RR] = 0;
+                frameIter[FR] = GAIT_PATH_FRAMES/2;
+                frameIter[RL] = GAIT_PATH_FRAMES/2;
+            }
+            
+            if(currTimeMillis - prevTime > periodUpdate){
+                prevTime = currTimeMillis;
+
+                swingTargetPoint = getNewPathPoint(FL, frameIter[FL], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(FL, swingTargetPoint, 4.8, true);
+                swingTargetPoint = getNewPathPoint(RR, frameIter[RR], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(RR, swingTargetPoint, 4.8, true);
+
+
+                stanceTargetPoint = getNewPathPoint(FR, frameIter[FR], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(FR, stanceTargetPoint, 4.8, true);
+                stanceTargetPoint = getNewPathPoint(RL, frameIter[RL], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(RL, stanceTargetPoint, 4.8, true);
+
+                frameIter[FL] += 1;
+                frameIter[RR] += 1;
+                frameIter[FR] += 1;
+                frameIter[RL] += 1;
+            }
+
+            break;
+ /*2*/  case ST1_SW2:
+            if (gaitState.stateChanged){
+                updateVelocities(2, Velocities);
+                frameIter[FL] = GAIT_PATH_FRAMES/2;
+                frameIter[RR] = GAIT_PATH_FRAMES/2;
+                frameIter[FR] = 0; 
+                frameIter[RL] = 0; 
+            }
+
+            if(currTimeMillis - prevTime > periodUpdate){
+                prevTime = currTimeMillis;
+
+                stanceTargetPoint = getNewPathPoint(FL, frameIter[FL], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(FL, stanceTargetPoint, 4.8, true);
+                stanceTargetPoint = getNewPathPoint(RR, frameIter[RR], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(RR, stanceTargetPoint, 4.8, true);
+
+
+                swingTargetPoint = getNewPathPoint(FR, frameIter[FR], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(FR, swingTargetPoint, 4.8, true);
+                swingTargetPoint = getNewPathPoint(RL, frameIter[RL], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(RL, swingTargetPoint, 4.8, true);
+
+                frameIter[FL] += 1;
+                frameIter[RR] += 1;
+                frameIter[FR] += 1;
+                frameIter[RL] += 1;
+            }
+
+            break;
+ /*3*/  case SW1_ST2:
+            // Plan whole step for pair 1 (fl + rr)
+            if(gaitState.stateChanged){
+                updateVelocities(1, Velocities);
+                frameIter[FL] = 0;
+                frameIter[RR] = 0;
+                frameIter[FR] = GAIT_PATH_FRAMES/2;
+                frameIter[RL] = GAIT_PATH_FRAMES/2;
+            }
+
+            if(currTimeMillis - prevTime > periodUpdate){
+                prevTime = currTimeMillis;
+
+                swingTargetPoint = getNewPathPoint(FL, frameIter[FL], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(FL, swingTargetPoint, 4.8, true);
+                swingTargetPoint = getNewPathPoint(RR, frameIter[RR], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(RR, swingTargetPoint, 4.8, true);
+
+                stanceTargetPoint = getNewPathPoint(FR, frameIter[FR], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(FR, stanceTargetPoint, 4.8, true);
+                stanceTargetPoint = getNewPathPoint(RL, frameIter[RL], STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+                move_foot(RL, stanceTargetPoint, 4.8, true);
+
+                frameIter[FL] += 1;
+                frameIter[RR] += 1;
+                frameIter[FR] += 1;
+                frameIter[RL] += 1;
+            }
+
+            break;
     }
+
+    // Compute next state
+    if(gaitState.state == IDLE_GAIT){
+        if (gaitState.tis > GAIT_STOP_TIME_MILLIS){
+            for(int i = 0; i < NUM_LEGS; i++){
+                if (Velocities[i].norm() > VELOCITY_THRESH){
+                    gaitState.new_state = STARTER_SW1_ST2;
+                    updateVelocities(0, Velocities);
+                }
+            }
+        }
+    } else if (gaitState.state == STARTER_SW1_ST2){
+        if(gaitState.tis > gaitTst*1000){
+            gaitState.new_state = ST1_SW2;
+        } else {
+            for(int i = 0; i < NUM_LEGS; i++){
+                if (Velocities[i].norm() <= VELOCITY_THRESH){
+                    gaitState.new_state = IDLE_GAIT;
+                }
+            }
+        }
+    } else if (gaitState.state == ST1_SW2){
+        if(gaitState.tis > gaitTst*1000){
+            gaitState.new_state = SW1_ST2;
+        } else {
+            for(int i = 0; i < NUM_LEGS; i++){
+                if (Velocities[i].norm() <= VELOCITY_THRESH){
+                    gaitState.new_state = IDLE_GAIT;
+                }
+            }
+        }
+    } else if (gaitState.state == SW1_ST2){
+        if (gaitState.tis > gaitTst*1000){
+            gaitState.new_state = ST1_SW2;
+        } else {
+            for(int i = 0; i < NUM_LEGS; i++){
+                if (Velocities[i].norm() <= VELOCITY_THRESH){
+                    gaitState.new_state = IDLE_GAIT;
+                }
+            }
+        }
+    }
+
+    if(frameIter[FL] > GAIT_PATH_FRAMES-1 || frameIter[RR] > GAIT_PATH_FRAMES-1){
+        frameIter[FL] = 0;
+        frameIter[RR] = 0;
+    }
+
+    if(frameIter[FR] > GAIT_PATH_FRAMES-1 || frameIter[RL] > GAIT_PATH_FRAMES-1){
+        frameIter[FR] = 0;
+        frameIter[RL] = 0;
+    }
+
+    // Update: state ➞ new state
+    setState(gaitState, currTimeMillis);
+
+    // Update servos
+    //  ↳done in main loop !!
+
+    return true;  
 }
 
 bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]){
@@ -826,11 +1052,7 @@ void Spot::setPeriods(double totalPeriod, double stancePeriod, double swingPerio
 }
 
 void Spot::setStanceVelocity(int Leg, Eigen::Vector3d stanceVelocities){
-    if (stepState[Leg] != STANCE || stepState[Leg] != SWING){
-       this->stanceVelocities[Leg] = stanceVelocities; 
-    } else {
-        DEBUG_I("Cannot set stance velocity while in stance or swing phase");
-    }
+    this->stanceVelocities[Leg] = stanceVelocities; 
 
     DEBUG_I("Applied to leg %d: %f, %f, %f", Leg,
              this->stanceVelocities[Leg][0], 
@@ -864,6 +1086,15 @@ bool Spot::isStepDone(int Leg, int Leg2){
 }
 
 // - - - Testing Space - - -
+
+void Spot::printPathPoints(int leg){
+    Eigen::Vector3d point;
+    DEBUG_I(",%f, %f, %f", 0.0, 0.0, 0.0);
+    for (int i = 0; i < GAIT_PATH_FRAMES; i++){
+        point = getNewPathPoint(leg, i, STD_MAX_STEP_H, Eigen::Vector3d(0.0, 0.0, 0.0));
+        DEBUG_I(",%f, %f, %f", point[0], point[1], point[2]);
+    }
+}
 bool Spot::performStancePhase(){
     Eigen::Vector3d stanceTargetPoint;
     double dt = 0.0;
@@ -1035,6 +1266,10 @@ void Spot::prone_calibration_stance()
     double speed = STD_SPEED_RAD;
     // set_stance(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance);
     set_stance_wspeed(Left_shoulder_stance, Left_elbow_stance, Left_wrist_stance, Right_shoulder_stance, Right_elbow_stance, Right_wrist_stance, speed);
+}
+
+double reframeAngle(double angle){
+    return angle+PI;
 }
 
 double Spot::max(double a0, double a1, double a2)

@@ -12,7 +12,7 @@
 #define POS_ERROR_THRESHOLD 0.1 // degrees
 
 #define BEZIER_CONTROL_POINTS 4 // cubic bezier curve
-#define GAIT_PATH_POINTS 18 // (HAS TO BE EVEN) -> 9 for stance and 9 for swing
+#define GAIT_PATH_FRAMES 16 // (HAS TO BE EVEN) -> 9 for stance and 9 for swing
 
 enum ServoIndex {
     FL_SHOULDER, FL_ELBOW, FL_WRIST, // leg 0
@@ -85,6 +85,7 @@ public:
     void straight_calibration_stance();
     void prone_calibration_stance();
 
+    // Old Dynamic Gait
     void bezierControlPoints(
         Eigen::Vector3d (&points)[BEZIER_CONTROL_POINTS],
         Eigen::Vector3d pattern[BEZIER_CONTROL_POINTS],
@@ -100,6 +101,7 @@ public:
     void getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector3d &stanceVelocities);
 
     bool performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
+    bool performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
     bool performStep(int Leg, double &currTimeMillis);
     int getStepState(int Leg);
     bool isStepDone(int Leg);
@@ -108,7 +110,41 @@ public:
     void setStanceVelocity(int Leg, Eigen::Vector3d stanceVelocities);
     void setGaitState(int state, double &currTimeMillis);
 
+    // New Dynamic Gait
+    /**
+     * @brief generatePath generates the path for the gait. It uses two cubic bezier curves
+     * to generate the path points. One bezier for the swing and another for the stance.
+     * (Note: cubic bezier curves are generated using FOUR control points)
+     * 
+     * @param @p outputPathPoints the output path points
+     * @param @p swingCtrlPoints the bezier control points for the swing
+     * @param @p stanceCtrlPoints the bezier control points for the stance
+     */
+    void generatePath(
+        Eigen::Vector3d (&outputPathPoints)[GAIT_PATH_FRAMES], 
+        Eigen::Vector3d swingCtrlPoints[BEZIER_CONTROL_POINTS], 
+        Eigen::Vector3d stanceCtrlPoints[BEZIER_CONTROL_POINTS]);
+
+    Eigen::Vector3d rotateZToAlign(Eigen::Vector3d& V, Eigen::Vector3d& vReference);
+
+    /**
+     * @brief getNewPathPoint returns the path point for this @p frame for this @p leg based on .
+     * admits the velocities are already updated and stored in stanceVelocities.
+     * It automatically move the points to the reference midpoint of a leg 
+     * (defined as the starting position of the leg), can be applied any offset with 
+     * the @p midPointOffset parameter
+     * 
+     * @param @p leg the leg index
+     * @param @p frame the frame index
+     * @param @p stepHeight the step height
+     * @param @p midPointOffset the offset to apply to the path point
+     */
+   Eigen::Vector3d getNewPathPoint(int leg, int frame, double stepHeight, Eigen::Vector3d midPointOffset);
+
+    // - - - - - - - - - - - - -
+
     // - - - Testing Space - - -
+    void printPathPoints(int leg);
     bool performStancePhase();
     bool testGaitGen();
     // - - - - - - - - - - - - -
@@ -126,7 +162,10 @@ public:
     double timeHelper[4];  // To be used inside functions that require time memory between cycles
     
     Eigen::Vector3d feetVelocities[NUM_LEGS]; // TODO maybe will not be used
-    Eigen::Vector3d gaitPathPoints[GAIT_PATH_POINTS];
+    Eigen::Vector3d gaitPathPoints[GAIT_PATH_FRAMES];
+    int frameIter[NUM_LEGS];
+    double periodUpdate;
+    double prevTime;
 
 private:
     double max(double a0, double a1, double a2);
@@ -164,6 +203,7 @@ private:
     bool setState(fsm_t &stateMachine, double &currTimeMillis);
     void updateStateTime(fsm_t &stateMachine, double &currTimeMillis);
     void updateVelocities(int pair, Eigen::Vector3d Velocities[NUM_LEGS]);
+    double reframeAngle(double angle);
 
 };
 

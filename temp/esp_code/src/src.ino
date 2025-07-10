@@ -85,7 +85,12 @@ enum CONTROL_STATES
   NO_BLOCKING_TEST,    // 15
   STANCE_TEST,         // 16
   PERFORM_STEP,        // 17
-  PERFORM_DYNAMIC_GAIT // 18
+  PERFORM_DYNAMIC_GAIT,// 18
+  PRINT_PATH_POINTS,   // 19
+  PRINT_PATH_POINTS1,   // 20
+  PRINT_PATH_POINTS2,   // 21
+  PRINT_PATH_POINTS3,   // 22
+  PERFORM_DYNAMIC_GAIT2 // 23
 };
 
 enum SERVOS_CONTROL_IDX
@@ -166,13 +171,31 @@ bool stance_test = false;
 // double bezPeriodTime = 0;
 // Eigen::Vector3d points_bf [4];
 
-#define D_STANCE 1.0 / 100.0
+#define D_STANCE 1.5 / 100.0
 #define T_GAIT 0.7
 
-Eigen::Vector3d velocities[4] = {Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
-                                 Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
-                                 Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0),
-                                 Eigen::Vector3d(-D_STANCE*2/T_GAIT,0.0,0.0)};
+double V  = 0.0;
+double Vn = 0.0;
+double W  = 0.0;
+double Vt  = 0.0;
+
+double Rx  = 0.0;
+double Ry  = 0.0;
+double Rth = 0.0;
+
+double Vx = 0.0;
+double Vy = 0.0;
+const double Vz = 0.0;
+
+Eigen::Vector3d velocities[4] = {Eigen::Vector3d(D_STANCE*2/T_GAIT,0.0,0.0),
+                                 Eigen::Vector3d(D_STANCE*2/T_GAIT,0.0,0.0),
+                                 Eigen::Vector3d(D_STANCE*2/T_GAIT,0.0,0.0),
+                                 Eigen::Vector3d(D_STANCE*2/T_GAIT,0.0,0.0)};
+
+// Eigen::Vector3d velocities[4] = {Eigen::Vector3d(0.0,D_STANCE*2/T_GAIT,0.0),
+//                                  Eigen::Vector3d(0.0,D_STANCE*2/T_GAIT,0.0),
+//                                  Eigen::Vector3d(0.0,D_STANCE*2/T_GAIT,0.0),
+//                                  Eigen::Vector3d(0.0,D_STANCE*2/T_GAIT,0.0)};
 
 Eigen::Vector3d velocities0[4] = {Eigen::Vector3d(0.0,0.0,0.0),
                                   Eigen::Vector3d(0.0,0.0,0.0),
@@ -266,15 +289,6 @@ void setup()
   delay(2000);
   confirm_servos();
   ini = false;
-
-  // xTaskCreate(
-  //   test_task,
-  //   "test_task",
-  //   10000,
-  //   NULL,
-  //   1,
-  //   NULL
-  // );
 }
 
 void loop()
@@ -318,6 +332,26 @@ void loop()
 
       case PERFORM_DYNAMIC_GAIT:
         miniSpot.performDynamicGait(current_time, velocities);
+      break;
+
+      case PERFORM_DYNAMIC_GAIT2:
+        for(int i = 0; i < NUM_LEGS; i++){//TODO move this to Spot class
+          Rx  = miniSpot.model.startingFeetPos[i].x();
+          Ry  = miniSpot.model.startingFeetPos[i].y();
+          Rth = atan2(Ry,Rx);
+
+          Vt = W * sqrt(pow(Rx,2) + pow(Ry,2));
+          Vx = V + Vt * sin(Rth);
+          Vy = Vn+ Vt * cos(Rth);
+
+          if (fabs(Vx > 0.32)) Vx = (Vx < 0) ? -0.32 : 0.32;
+          if (fabs(Vy > 0.32)) Vy = (Vy < 0) ? -0.32 : 0.32;
+
+          velocities[i] = Eigen::Vector3d(Vx, Vy, Vz);
+
+          //DEBUG_I(",%f,%f,%f", Vt * sin(Rth), Vt * cos(Rth), 0.0);
+        }
+        miniSpot.performDynamicGait2(current_time, velocities);
       break;
 
       default:
@@ -464,6 +498,44 @@ void loop()
         control_state = (control_state == PERFORM_DYNAMIC_GAIT) ? IDLE : PERFORM_DYNAMIC_GAIT;
         break;
 
+      case PRINT_PATH_POINTS:
+        DEBUG_I("PRINT_PATH_POINTS");
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+        miniSpot.setStanceVelocity(RL, Eigen::Vector3d(-0.15, 0.0, 0.0));
+        miniSpot.printPathPoints(RL);
+        break;
+      
+      case PRINT_PATH_POINTS1:
+        DEBUG_I("PRINT_PATH_POINTS2");
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+        miniSpot.setStanceVelocity(RL, Eigen::Vector3d(0.15, 0.15, 0.0));
+        miniSpot.printPathPoints(RL);
+        break;
+
+      case PRINT_PATH_POINTS2:
+        DEBUG_I("PRINT_PATH_POINTS2");
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+        miniSpot.setStanceVelocity(RL, Eigen::Vector3d(-0.30, 0.0, 0.0));
+        miniSpot.printPathPoints(RL);
+        break;
+      
+      case PRINT_PATH_POINTS3:
+        DEBUG_I("PRINT_PATH_POINTS3");
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+        miniSpot.setStanceVelocity(RR, velocities[RR]);
+        miniSpot.printPathPoints(RR);
+        break;
+
+      case PERFORM_DYNAMIC_GAIT2:
+        DEBUG_I("PERFORM_DYNAMIC_GAIT2");
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+        if (control_state == PERFORM_DYNAMIC_GAIT2){
+          miniSpot.setGaitState(0, current_time);
+          miniSpot.performDynamicGait2(current_time, velocities0);
+        }
+        control_state = (control_state == PERFORM_DYNAMIC_GAIT2) ? IDLE : PERFORM_DYNAMIC_GAIT2;
+        break;
+
       case TOGGLE_LOG:
         if (log_toggle){
           Serial.println("ESP/LOG:Log:true");
@@ -518,7 +590,7 @@ void loop()
           miniSpot.pose();
           break;
       }
-      if (feet_stream_control.selected <4) printFootPos(feet_stream_control.selected);
+      //if (feet_stream_control.selected <4) printFootPos(feet_stream_control.selected);
       miniSpot.getLoads();
     }
 
@@ -563,7 +635,86 @@ void printFootPos(int leg){
 
 void serialEvent()
 {
-  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, process_stream_control, pi_command, offset_lean_frame, servo_frame);
+  //serialHandler.HandleSerialEvent(inputBuffer, bufferPos, process_stream_control, pi_command, offset_lean_frame, servo_frame);
+  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, control_speeds, pi_command, offset_lean_frame, servo_frame);
+}
+
+bool control_speeds(char c) {
+  if (!stream_control)
+  {
+    stream_control = true;
+  }
+  switch (c){
+    case 'q':
+      stream_control = false;
+      Serial.println("ESP/STREAM:Stream Control Disabled");
+      return false;
+    break;
+
+    case '1':
+      if (control_state == PERFORM_DYNAMIC_GAIT2){
+        control_state = IDLE;
+        miniSpot.setGaitState(IDLE_GAIT, current_time);
+      } else {
+        control_state = PERFORM_DYNAMIC_GAIT2;
+        miniSpot.setPeriods(T_GAIT, T_GAIT/2, T_GAIT/2);
+      }
+    break;
+
+    case '2':
+    case 's':
+      V  = 0.0;
+      Vn = 0.0;
+      W  = 0.0;
+    break;
+
+    case 'i':
+      V += feet_stream_control.step;
+    break;
+
+    case 'k':
+      V -= feet_stream_control.step;
+    break;
+
+    case 'j':
+      W += feet_stream_control.step*10;
+    break;
+
+    case 'l':
+      W -= feet_stream_control.step*10;
+    break;
+
+    case 'u':
+      Vn += feet_stream_control.step;
+    break;
+
+    case 'o':
+      Vn -= feet_stream_control.step;
+    break;
+
+    case 'm':
+      if (fabs(feet_stream_control.step) >= 0.01) {
+        feet_stream_control.step = feet_stream_control.step + 0.01;
+      } else if (fabs(feet_stream_control.step) < 0.01) {
+        feet_stream_control.step = feet_stream_control.step + 0.001;
+      }
+      DEBUG_I("Step value: %f", feet_stream_control.step);
+    break;
+
+    case 'n':
+      if (fabs(feet_stream_control.step) > 0.01) {
+        feet_stream_control.step = feet_stream_control.step - 0.01;
+      } else if (fabs(feet_stream_control.step) <= 0.01) {
+        feet_stream_control.step = feet_stream_control.step - 0.001;
+      }
+      DEBUG_I("Step value: %f", feet_stream_control.step);
+    break;
+
+    default:
+    break;
+  }
+  DEBUG_I("V: %f, Vn: %f, W: %f", V, Vn, W);
+  return true;
 }
 
 bool process_stream_control(char c)
@@ -580,17 +731,17 @@ bool process_stream_control(char c)
     return false;
     break;
   case 'm':
-    if (feet_stream_control.step > 0.01) {
+    if (fabs(feet_stream_control.step) >= 0.01) {
       feet_stream_control.step = feet_stream_control.step + 0.01;
-    } else if (feet_stream_control.step <= 0.01) {
+    } else if (fabs(feet_stream_control.step) < 0.01) {
       feet_stream_control.step = feet_stream_control.step + 0.001;
     }
     DEBUG_I("Step value: %f", feet_stream_control.step);
     break;
   case 'n':
-    if (feet_stream_control.step > 0.01) {
+    if (fabs(feet_stream_control.step) > 0.01) {
       feet_stream_control.step = feet_stream_control.step - 0.01;
-    } else if (feet_stream_control.step <= 0.01) {
+    } else if (fabs(feet_stream_control.step) <= 0.01) {
       feet_stream_control.step = feet_stream_control.step - 0.001;
     }
     DEBUG_I("Step value: %f", feet_stream_control.step);

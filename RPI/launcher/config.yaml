@@ -1,0 +1,22 @@
+global:
+  modules_path: "modules"
+
+ESPSerialHandler:
+  enbled: true
+  args:
+    -p: "/dev/ttyUSB0"
+    -b: 115200
+    --pub-socket: "/tmp/pub_esp_serial_handler.socket"
+    --sub-socket: "10.227.159.191"
+    --sub-port: 5000
+  flags:
+    verbose: false
+
+PICOSerialHandler:
+  enabled: false
+  args:
+    -p: "/dev/ttyACM0"
+    -b: 115200
+    -s: "/tmp/pico_serial_handler.socket"
+  flags:
+    verbose: true

@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument("-p", "--port", type=str, required=True, help="Serial port to connect to")
     parser.add_argument("-b", "--baudrate", type=int, default=115200, help="Baudrate for the serial connection")
     parser.add_argument("--pub-socket", "--socket_path_pub", type=str, default=PUB_IPC_SOCKET_PATH, help="Path to the IPC output socket")
-    parser.add_argument("--sub-socket", "--socket_path_sub", type=str, default=SUB_IPC_SOCKET_PATH, help="Path to the IPC input socket")
+    parser.add_argument("--sub-socket", "--socket_path_sub", type=str, default=SUB_IPC_SOCKET_PATH, help="Path to the IPC or TCP input socket")
     parser.add_argument("--sub-port", "--port_sub", type=int, help="Port for the Input Socket")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()

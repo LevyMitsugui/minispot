@@ -25,6 +25,13 @@ typedef struct OFFSET_LEAN_FRAME
   float speed;
 } OFFSET_LEAN_FRAME;
 
+// typedef struct HOLONOMIC_SPEEDS
+// {
+//   double V;
+//   double Vn;
+//   double W;
+// }HOLONOMIC_SPEEDS;
+
 class SerialHandler
 {
 public:

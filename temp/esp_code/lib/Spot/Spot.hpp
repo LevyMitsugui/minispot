@@ -101,6 +101,7 @@ public:
     void getStancePoints(int leg, Eigen::Vector3d &stancePoints, Eigen::Vector3d &stanceVelocities);
 
     bool performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
+    void computeFeetVelocities(Eigen::Vector3d (&velocities)[NUM_LEGS],double V, double Vn, double W);
     bool performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
     bool performStep(int Leg, double &currTimeMillis);
     int getStepState(int Leg);

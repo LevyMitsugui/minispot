@@ -90,7 +90,8 @@ enum CONTROL_STATES
   PRINT_PATH_POINTS1,   // 20
   PRINT_PATH_POINTS2,   // 21
   PRINT_PATH_POINTS3,   // 22
-  PERFORM_DYNAMIC_GAIT2 // 23
+  PERFORM_DYNAMIC_GAIT2,// 23
+  CONTROL_HOLONOMIC     // 24
 };
 
 enum SERVOS_CONTROL_IDX
@@ -107,6 +108,13 @@ enum SERVOS_CONTROL_IDX
   RR_SHOULDER_CONTROL,
   RR_ELBOW_CONTROL,
   RR_WRIST_CONTROL
+};
+
+enum HOLONOMIC_STATES
+{
+  OFF,
+  ACKNOWLEDGE,
+  WALK,
 };
 
 typedef struct FEET_STREAM_CONTROL
@@ -201,6 +209,10 @@ Eigen::Vector3d velocities0[4] = {Eigen::Vector3d(0.0,0.0,0.0),
                                   Eigen::Vector3d(0.0,0.0,0.0),
                                   Eigen::Vector3d(0.0,0.0,0.0),
                                   Eigen::Vector3d(0.0,0.0,0.0)};
+
+fsm_t holonomic_sm;
+void holonomicControlStateMachine(fsm_t &stateMachine, double currTime);
+
 // ----------------------------------------------------
 
 // the GPIO used to control RGB LEDs.
@@ -312,7 +324,7 @@ void loop()
   current_time = millis();
   if(current_time - last_time > cycle_time){
     last_time = current_time;
-    
+
     if (gait_no_blocking_test){
       miniSpot.perform_gait_no_blocking(gait_backward, false);
     }
@@ -335,23 +347,12 @@ void loop()
       break;
 
       case PERFORM_DYNAMIC_GAIT2:
-        for(int i = 0; i < NUM_LEGS; i++){//TODO move this to Spot class
-          Rx  = miniSpot.model.startingFeetPos[i].x();
-          Ry  = miniSpot.model.startingFeetPos[i].y();
-          Rth = atan2(Ry,Rx);
-
-          Vt = W * sqrt(pow(Rx,2) + pow(Ry,2));
-          Vx = V - Vt * sin(Rth);
-          Vy = Vn+ Vt * cos(Rth);
-
-          if (fabs(Vx > 0.32)) Vx = (Vx < 0) ? -0.32 : 0.32;
-          if (fabs(Vy > 0.32)) Vy = (Vy < 0) ? -0.32 : 0.32;
-
-          velocities[i] = Eigen::Vector3d(Vx, Vy, Vz);
-
-          //DEBUG_I(",%f,%f,%f", Vt * sin(Rth), Vt * cos(Rth), 0.0);
-        }
+        miniSpot.computeFeetVelocities(velocities, V, Vn, W);
         miniSpot.performDynamicGait2(current_time, velocities);
+      break;
+
+      case CONTROL_HOLONOMIC:
+        holonomicControlStateMachine(holonomic_sm, current_time);
       break;
 
       default:
@@ -536,6 +537,18 @@ void loop()
         control_state = (control_state == PERFORM_DYNAMIC_GAIT2) ? IDLE : PERFORM_DYNAMIC_GAIT2;
         break;
 
+      case CONTROL_HOLONOMIC:
+        if (holonomic_sm.state == OFF){
+          holonomic_sm.new_state = ACKNOWLEDGE;
+        } else if (holonomic_sm.state == WALK){
+          holonomic_sm.new_state == OFF;
+        }
+      break;
+
+      case 25:
+        parseSpeeds(pi_command, V, Vn, W);
+      break;
+
       case TOGGLE_LOG:
         if (log_toggle){
           Serial.println("ESP/LOG:Log:true");
@@ -637,6 +650,46 @@ void serialEvent()
 {
   //serialHandler.HandleSerialEvent(inputBuffer, bufferPos, process_stream_control, pi_command, offset_lean_frame, servo_frame);
   serialHandler.HandleSerialEvent(inputBuffer, bufferPos, control_speeds, pi_command, offset_lean_frame, servo_frame);
+}
+
+void parseSpeeds(PI_COMMAND pi_command, double &V, double &Vn, double&W){
+  char *token = strtok(pi_command.package + 3, ",");
+
+  V = atof(token);
+  token = strtok(NULL, ",");
+  Vn = atof(token);
+  token = strtok(NULL, ",");
+  W = atof(token);
+  DEBUG_I("V: %f, Vn: %f, W: %f", V, Vn, W);
+}
+
+void holonomicControlStateMachine(fsm_t &stateMachine, double currTime){
+
+  stateMachine.tis = currTime - stateMachine.tes;
+
+  switch(stateMachine.state){
+    case OFF:
+    break;
+    case ACKNOWLEDGE:
+      send_message("True");
+    case WALK:
+      miniSpot.computeFeetVelocities(velocities, V, Vn, W);
+      miniSpot.performDynamicGait2(current_time, velocities);
+    break;
+  }
+
+  if (stateMachine.state == ACKNOWLEDGE && stateMachine.tis >= 500){
+    stateMachine.new_state = WALK;
+  }
+
+  if (stateMachine.state != stateMachine.new_state){
+    stateMachine.state = stateMachine.new_state;
+    stateMachine.tes = currTime;
+    stateMachine.tis = 0.0;
+    stateMachine.stateChanged = true;
+  } else {
+    stateMachine.stateChanged = false;
+  }
 }
 
 bool control_speeds(char c) {

@@ -566,6 +566,25 @@ Eigen::Vector3d Spot::getNewPathPoint(int leg, int frame, double stepHeight, Eig
     return ret;
 }
 
+void Spot::computeFeetVelocities(Eigen::Vector3d (&velocities)[NUM_LEGS], double V, double Vn, double W){
+    for(int i = 0; i < NUM_LEGS; i++){//TODO move this to Spot class
+        double Rx  = model.startingFeetPos[i].x();
+        double Ry  = model.startingFeetPos[i].y();
+        double Rth = atan2(Ry,Rx);
+
+        double Vt = W * sqrt(pow(Rx,2) + pow(Ry,2));
+        double Vx = V - Vt * sin(Rth);
+        double Vy = Vn+ Vt * cos(Rth);
+
+        if (fabs(Vx > 0.32)) Vx = (Vx < 0) ? -0.32 : 0.32;
+        if (fabs(Vy > 0.32)) Vy = (Vy < 0) ? -0.32 : 0.32;
+
+        velocities[i] = Eigen::Vector3d(Vx, Vy, 0.0);
+
+        // DEBUG_I(",%f,%f,%f", Vt * sin(Rth), Vt * cos(Rth), 0.0);
+    }
+}
+
 bool Spot::performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]){
     double period = 0.0;
     Eigen::Vector3d stanceTargetPoint;
@@ -574,12 +593,12 @@ bool Spot::performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocitie
     // Update finite state machine timer
     updateStateTime(gaitState, currTimeMillis);
     //     state,time(ms),x(m),y(m),z(m)
-    DEBUG_I(",%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d", gaitState.state, currTimeMillis,
-                    getFootPosition(RR)[0],
-                    getFootPosition(RR)[1],
-                    getFootPosition(RR)[2],
-                    currTimeMillis, prevTime, currTimeMillis - prevTime, periodUpdate,
-                    frameIter[0], frameIter[1], frameIter[2], frameIter[3]);
+    // DEBUG_I(",%d,%f,%f,%f,%f,%f,%f,%f,%f,%d,%d,%d,%d", gaitState.state, currTimeMillis,
+    //                 getFootPosition(RR)[0],
+    //                 getFootPosition(RR)[1],
+    //                 getFootPosition(RR)[2],
+    //                 currTimeMillis, prevTime, currTimeMillis - prevTime, periodUpdate,
+    //                 frameIter[0], frameIter[1], frameIter[2], frameIter[3]);
 
     // define state actions (actual outputs, like motor movement, is done later)
     switch (gaitState.state){

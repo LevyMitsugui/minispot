@@ -324,6 +324,8 @@ void loop()
   current_time = millis();
   if(current_time - last_time > cycle_time){
     last_time = current_time;
+    // Serial.print("ESP/LOOP/CYCLE:");
+    // Serial.println(cycle);
 
     if (gait_no_blocking_test){
       miniSpot.perform_gait_no_blocking(gait_backward, false);

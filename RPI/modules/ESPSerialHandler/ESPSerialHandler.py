@@ -72,6 +72,8 @@ class ESPSerialHandler:
 
         Note: This method is blocking and runs indefinitely until the program is interrupted.
         """
+        if(self.verbose):
+            print("ESPSerialHandler read write loop running")
 
         while self._running:
             if not self.is_open:
@@ -89,6 +91,8 @@ class ESPSerialHandler:
                 #line = False
                 if line:
                     self._latest_sample = line
+                    if self.verbose:
+                        print("Line from ESP: ", line)
                     self._has_new_data = True
                     topic, data = self._parse_serial_line(line)
                     if topic and data and self.verbose:
@@ -120,7 +124,9 @@ class ESPSerialHandler:
 
             if msg:
                 try:
+                    print("serial prev: ", msg)
                     self._serial.write(msg)
+                    print("serial sent: ", msg)
                     self._serial.flush()
                     with self._realtime_lock:
                         self.realtime_msg = None

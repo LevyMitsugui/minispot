@@ -4,19 +4,20 @@ global:
 ESPSerialHandler:
   enbled: true
   args:
-    -p: "/dev/ttyUSB0"
-    -b: 115200
-    --pub-socket: "/tmp/pub_esp_serial_handler.socket"
-    --sub-socket: "10.227.159.191"
-    --sub-port: 5000
-  flags:
-    verbose: false
-
-PICOSerialHandler:
-  enabled: false
-  args:
-    -p: "/dev/ttyACM0"
-    -b: 115200
-    -s: "/tmp/pico_serial_handler.socket"
+    -p: "/dev/ttyUSB0"                  #serial port
+    -b: 115200                          #baudrate
+    --pub-socket: "/tmp/pub_esp_serial_handler.socket" #zmq publish socket path
+    --sub-socket: "/tmp/sub_esp_serial_handler.socket"      #zmq subscribe to socket path (either IPC path or IP for TCP or UDP)
+    #--sub-socket: "10.227.144.223"      #zmq subscribe to socket path (either IPC path or IP for TCP or UDP)
+    #--sub-port: 5000                    #zmq subscribe to port (if path is tcp or udp)
   flags:
     verbose: true
+
+PICOSerialHandler:
+  enabled: true
+  args:
+    -p: "/dev/ttyACM0"                    #serial port
+    -b: 115200                            #baudrate
+    -s: "/tmp/pico_serial_handler.socket" #zmq socket path
+  flags:
+    verbose: false

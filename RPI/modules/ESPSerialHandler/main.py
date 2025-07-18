@@ -8,6 +8,8 @@ import argparse
 import socket as pysocket
 import time
 
+PASS_THROUGH = True
+
 PUB_IPC_SOCKET_PATH = "/tmp/pub_esp_serial_handler.socket" # Default publisher path for IPC socket
 SUB_IPC_SOCKET_PATH = "/tmp/sub_esp_serial_handler.socket" # Default subscriber path for IPC socket
 PORT = 5555
@@ -70,7 +72,7 @@ def main():
     try:
         args = parse_args()
         handler = ESPSerialHandler.ESPSerialHandler(args.port, args.baudrate, verbose=args.verbose)
-        context, pub_socket, sub_socket = setup_zmq_socket(args.pub_socket, args.sub_socket, args.sub_port, sub_filters=["CMD/ESP"], verbose=args.verbose)
+        context, pub_socket, sub_socket = setup_zmq_socket(args.pub_socket, args.sub_socket, args.sub_port, sub_filters=["ESP/CTRL"], verbose=args.verbose)
 
         handler.set_callback(publish_data(pub_socket, verbose=args.verbose))
         handler.start()
@@ -84,26 +86,34 @@ def main():
         pitch = 0
         yaw = 0
         speed = 250
-        msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
+        if PASS_THROUGH:
+            msg = "<23\n"
+        else:
+            msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
         print(msg)
         handler.set_realtime_msg(msg.encode())
 
         while True:
             topic, data = sub_socket.recv_multipart()
             data = msgpack.unpackb(data, raw=False)
-            if topic.decode() == "CMD/ESP/roll":
-                roll = data
-            elif topic.decode() == "CMD/ESP/pitch":
-                pitch = data
-            elif topic.decode() == "CMD/ESP/yaw":
-                yaw = data
-            elif topic.decode() == "CMD/ESP/x":
-                x = data
-            elif topic.decode() == "CMD/ESP/y":
-                y = data
-            msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
+            if PASS_THROUGH:
+                msg = data
+            else:
+                if topic.decode() == "CMD/ESP/roll":
+                    roll = data
+                elif topic.decode() == "CMD/ESP/pitch":
+                    pitch = data
+                elif topic.decode() == "CMD/ESP/yaw":
+                    yaw = data
+                elif topic.decode() == "CMD/ESP/x":
+                    x = data
+                elif topic.decode() == "CMD/ESP/y":
+                    y = data
+                msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
             print(msg)
             handler.set_realtime_msg(msg.encode())
+
+            
 
 
 

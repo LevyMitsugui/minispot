@@ -38,6 +38,8 @@ socket.setsockopt_string(zmq.SUBSCRIBE, "command")
 socket.setsockopt_string(zmq.SUBSCRIBE, "ESP/FB/FL")
 socket.setsockopt_string(zmq.SUBSCRIBE, "ESP/FB/RL")
 socket.setsockopt_string(zmq.SUBSCRIBE, "CMD/ESP")
+socket.setsockopt_string(zmq.SUBSCRIBE, "ESP/CTRL")
+
 try:
     while True:
         topic, data = socket.recv_multipart()

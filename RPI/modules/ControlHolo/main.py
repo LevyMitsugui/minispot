@@ -1,10 +1,15 @@
 import ControlHolo
+from Capture import Capture
 import zmq
 import msgpack
 import argparse
 
 PUB_IPC_SOCKET_PATH = "/tmp/sub_esp_serial_handler.socket" # Default publisher path for IPC socket
 SUB_IPC_SOCKET_PATH = "/tmp/pub_esp_serial_handler.socket" # Default subscriber path for IPC socket
+
+STD_TOPIC = "ESP/CTRL" # Default topic for ESP32 control messages
+SPEED_UPDTE_CMD = "25" # Command to update speed in the ESP32	
+CAPTURE_PATH = "/mnt/c/Users/Levy/Documents/GitHub/minispot/RPI/logs" # Default path for Capture logs
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Read and publish data from Pico Serial Handler.")
@@ -31,15 +36,37 @@ def setup_zmq_socket(args):
 
     return context, pub_socket, sub_socket
 
+def send_speeds(pub_socket, robotV, robotVn, robotW):
+    topic = STD_TOPIC
+    data  = "<" + SPEED_UPDTE_CMD + f":{robotV},{robotVn},{robotW}\n"
+    print(data)
+    pub_socket.send_multipart([topic.encode(), msgpack.packb(data)])
+
 def main():
     args = parse_args()
+    cap = Capture(CAPTURE_PATH, "last_test")
     context, pub_socket, sub_socket = setup_zmq_socket(args)
+    ctrl = ControlHolo.ControlHolo(pub_socket, verbose=args.verbose)
+    ctrl.update()  # Initial update to set speeds to zero
 
-    while(True):
-        input("Press enter to send")
-        topic = "ESP/CTRL"
-        data = "<25:0.1,0.1,0.1\n"
-        pub_socket.send_multipart([topic.encode(), msgpack.packb(data)])
+    while True:
+        try:
+            userInput = input("Enter string\n")
+           
+            if userInput == "quit":
+                cap.close()
+                break
+            else:
+                userInput = str(userInput)
+                cap.capture(userInput)
+            
+        except KeyboardInterrupt:
+            print("Exiting...")
+            cap.close()
+            break
+            
+
+
 
 if __name__ == "__main__":
     main()

@@ -13,7 +13,6 @@ class Capture:
         self.file_path = os.path.join(self.path, f"{filename}_{time.strftime('%H-%M')}.csv")
         self.file = open(self.file_path, 'w', newline='')
         self.writer = csv.writer(self.file)
-        self.writer.writerow(['Timestamp', 'Data'])
 
     def capture(self, data: str):
         timestamp = time.time() - self.startTime

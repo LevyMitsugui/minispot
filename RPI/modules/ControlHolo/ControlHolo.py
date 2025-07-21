@@ -1,17 +1,21 @@
 
 import zmq
 import msgpack
+import math
 
 STD_TOPIC = "ESP/CTRL" # Default topic for ESP32 control messages
 SPEED_UPDTE_CMD = "25" # Command to update speed in the ESP32
 class ControlHolo:
-    def __init__(self, socket, verbose=False):
+    def __init__(self, socket, maxV: float, maxW: float, verbose=False):
         self.socket = socket    
         self.verbose = verbose
 
-        self.robotV  = 0.0
-        self.robotVn = 0.0
-        self.robotW  = 0.0
+        self.robotV     = 0.0
+        self.robotVn    = 0.0
+        self.robotW     = 0.0
+
+        self.maxRobotV  = maxV
+        self.maxRobotW  = maxW
 
         self.robotX = 0.0
         self.robotY = 0.0
@@ -29,6 +33,11 @@ class ControlHolo:
         self.robotY = y
         self.robotTheta = theta
 
+    def stopRobot(self):
+        self.robotV = 0.0
+        self.robotVn = 0.0
+        self.robotW = 0.0
+
     def goToXYT(self, targetX, targetY, targetTheta):
         if self.verbose: print(f"[INFO] Moving to ({targetX}, {targetY}) from ({self.robotX}, {self.robotY})")
         
@@ -37,13 +46,16 @@ class ControlHolo:
 
         # ANGULAR VELOCITY
         dTheta = targetTheta - self.robotTheta
-        if dTheta > pi:
-            dTheta -= 2 * pi
-        elif dTheta < -pi:
-            dTheta += 2 * pi
+        if dTheta > math.pi():
+            dTheta -= 2 * math.pi
+        elif dTheta < -math.pi:
+            dTheta += 2 * math.pi
 
         if abs(dTheta) > 0.1:
-            self.robotW = B * dTheta
+            W = B * dTheta  
+            if W > self.maxRobotW:
+                W = self.maxRobotW
+            self.robotW = W
         else:
             self.robotW = 0.0
 
@@ -52,18 +64,20 @@ class ControlHolo:
         dy = targetY - self.robotY
         distance = (dx**2 + dy**2)**0.5
 
-        angle = atan2(dy, dx)
+        angle = math.atan2(dy, dx)
         angle = angle - self.robotTheta
-        if angle > pi:
-            angle -= 2 * pi
-        elif angle < -pi:
-            angle += 2 * pi
+        if angle > math.pi:
+            angle -= 2 * math.pi
+        elif angle < -math.pi:
+            angle += 2 * math.pi
 
         Vf =  A * distance
+        if Vf > self.maxRobotV:
+            Vf = self.maxRobotV
 
         if distance > 0.05:
-            self.robotV  = cos(angle) * Vf
-            self.robotVn = sin(angle) * Vf
+            self.robotV  = math.cos(angle) * Vf
+            self.robotVn = math.sin(angle) * Vf
         else:
             self.robotV = 0.0
             self.robotVn = 0.0
@@ -81,12 +95,12 @@ class ControlHolo:
     
     def blindRight(self, speed):
         self.robotV  = 0.0
-        self.robotVn = speed
+        self.robotVn = -speed
         self.robotW  = 0.0
 
     def blindLeft(self, speed):
         self.robotV  = 0.0
-        self.robotVn = -speed
+        self.robotVn = speed
         self.robotW  = 0.0
     
     def blindTurnRight(self, speed):

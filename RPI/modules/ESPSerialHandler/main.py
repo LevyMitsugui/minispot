@@ -87,7 +87,7 @@ def main():
         yaw = 0
         speed = 250
         if PASS_THROUGH:
-            msg = "<23\n"
+            msg = "< \n" # white space char restarts the ESP
         else:
             msg = f"<2:{x},{roll},{y},{pitch},{z},{yaw},{speed}\n"
         print(msg)

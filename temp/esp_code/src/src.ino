@@ -374,6 +374,10 @@ void loop()
       
       switch (pi_command.command)
       {
+      case IDLE:
+        control_state = IDLE;
+        break;
+      
       case SET_STANCE_STRAIGHT:
         Serial.println("SET_STANCE_STRAIGHT");
         miniSpot.straight_calibration_stance();

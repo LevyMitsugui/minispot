@@ -124,9 +124,7 @@ class ESPSerialHandler:
 
             if msg:
                 try:
-                    print("serial prev: ", msg)
                     self._serial.write(msg)
-                    print("serial sent: ", msg)
                     self._serial.flush()
                     with self._realtime_lock:
                         self.realtime_msg = None
@@ -139,6 +137,8 @@ class ESPSerialHandler:
         line = line.decode('utf-8').strip()
         try:
             topic, data = line.split(':', 1)
+            if str(topic).startswith("["):
+                return None, None
             return topic.strip(), data.strip().split(',')
         except ValueError:
             return None, None

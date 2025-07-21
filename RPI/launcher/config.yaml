@@ -7,11 +7,11 @@ ESPSerialHandler:
     -p: "/dev/ttyUSB0"                  #serial port
     -b: 115200                          #baudrate
     --pub-socket: "/tmp/pub_esp_serial_handler.socket" #zmq publish socket path
-    --sub-socket: "/tmp/sub_esp_serial_handler.socket"      #zmq subscribe to socket path (either IPC path or IP for TCP or UDP)
+    --sub-socket: "/tmp/sub_esp_serial_handler.socket" #zmq subscribe to socket path (either IPC path or IP for TCP or UDP)
     #--sub-socket: "10.227.144.223"      #zmq subscribe to socket path (either IPC path or IP for TCP or UDP)
     #--sub-port: 5000                    #zmq subscribe to port (if path is tcp or udp)
   flags:
-    verbose: true
+    verbose: false
 
 PICOSerialHandler:
   enabled: true
@@ -19,5 +19,14 @@ PICOSerialHandler:
     -p: "/dev/ttyACM0"                    #serial port
     -b: 115200                            #baudrate
     -s: "/tmp/pico_serial_handler.socket" #zmq socket path
+  flags:
+    verbose: false
+
+ControlHolo:
+  enabled: true
+  args:
+    --pub-socket: "/tmp/sub_esp_serial_handler.socket" #ESP will sub to this
+    --sub-socket: "10.227.144.223"
+    --sub-port:   5000
   flags:
     verbose: false

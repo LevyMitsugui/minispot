@@ -23,11 +23,17 @@ class ControlHolo:
         if self.verbose: print("[INFO] Sending:", data)
         self.socket.send_multipart([topic.encode(), msgpack.packb(data)])
 
+    def setRobotPose(self, x, y, theta):
+        if self.verbose: print(f"[INFO] Setting robot pose to ({x}, {y}, {theta})")
+        self.robotX = x
+        self.robotY = y
+        self.robotTheta = theta
+
     def goToXYT(self, targetX, targetY, targetTheta):
         if self.verbose: print(f"[INFO] Moving to ({targetX}, {targetY}) from ({self.robotX}, {self.robotY})")
         
         A = 1
-        B = 0.5
+        B = 2
 
         # ANGULAR VELOCITY
         dTheta = targetTheta - self.robotTheta

@@ -102,7 +102,11 @@ public:
 
     bool performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
     void computeFeetVelocities(Eigen::Vector3d (&velocities)[NUM_LEGS],double V, double Vn, double W);
+    
+    void printFootPos(int leg, int counter);
     bool performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]);
+    
+    
     bool performStep(int Leg, double &currTimeMillis);
     int getStepState(int Leg);
     bool isStepDone(int Leg);
@@ -140,8 +144,10 @@ public:
      * @param @p stepHeight the step height
      * @param @p midPointOffset the offset to apply to the path point
      */
-   Eigen::Vector3d getNewPathPoint(int leg, int frame, double stepHeight, Eigen::Vector3d midPointOffset);
+    Eigen::Vector3d getNewPathPoint(int leg, int frame, double stepHeight, Eigen::Vector3d midPointOffset);
+    void printPathPointsPattern();
 
+    void stopDynamicGait(double &currTime);
     // - - - - - - - - - - - - -
 
     // - - - Testing Space - - -
@@ -161,6 +167,7 @@ public:
 
     SpotModel model;
     double timeHelper[4];  // To be used inside functions that require time memory between cycles
+    double gaitPrevTime_;
     
     Eigen::Vector3d feetVelocities[NUM_LEGS]; // TODO maybe will not be used
     Eigen::Vector3d gaitPathPoints[GAIT_PATH_FRAMES];
@@ -191,6 +198,7 @@ private:
 
     StepState stepState[NUM_LEGS];
     fsm_t gaitState;
+    int gaitCycle;
 
     Eigen::Vector3d bezPoint[NUM_LEGS];
     Eigen::Vector3d bezControlPoints[NUM_LEGS][BEZIER_CONTROL_POINTS];

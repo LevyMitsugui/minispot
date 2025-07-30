@@ -180,7 +180,7 @@ bool stance_test = false;
 // Eigen::Vector3d points_bf [4];
 
 #define D_STANCE 1.5 / 100.0
-#define T_GAIT 0.7
+#define T_GAIT 0.7//0.736//0.6 = 7.8 //0.4 = 7.5 //0.736 = 1.1
 
 double V  = 0.0;
 double Vn = 0.0;
@@ -326,6 +326,10 @@ void loop()
     last_time = current_time;
     // Serial.print("ESP/LOOP/CYCLE:");
     // Serial.println(cycle);
+
+    if(PRINT){
+      printFootPos(0);
+    }
 
     if (gait_no_blocking_test){
       miniSpot.perform_gait_no_blocking(gait_backward, false);
@@ -539,6 +543,7 @@ void loop()
         if (control_state == PERFORM_DYNAMIC_GAIT2){
           miniSpot.setGaitState(0, current_time);
           miniSpot.performDynamicGait2(current_time, velocities0);
+          miniSpot.stopDynamicGait(current_time);
         }
         control_state = (control_state == PERFORM_DYNAMIC_GAIT2) ? IDLE : PERFORM_DYNAMIC_GAIT2;
         break;
@@ -646,16 +651,17 @@ void loop()
 }
 
 void printFootPos(int leg){
-  Eigen::Vector3d footPosition = miniSpot.getFootPosition(leg);
-  DEBUG_I("Foot Position: %f, %f, %f", footPosition[0], footPosition[1], footPosition[2]);
-  footPosition = miniSpot.getEstimatedFootPosition(leg);
-  DEBUG_I("Foot Position: %f, %f, %f - REAL", footPosition[0], footPosition[1], footPosition[2]);
+  Eigen::Vector3d footPosition1 = miniSpot.getFootPosition(leg);
+  Eigen::Vector3d footPosition2 = miniSpot.getEstimatedFootPosition(leg);
+  DEBUG_I(",%f, %f, %f,REAL:,%f, %f, %f",
+     footPosition1[0], footPosition1[1], footPosition1[2],
+     footPosition2[0], footPosition2[1], footPosition2[2]);
 }
 
 void serialEvent()
 {
-  //serialHandler.HandleSerialEvent(inputBuffer, bufferPos, process_stream_control, pi_command, offset_lean_frame, servo_frame);
-  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, control_speeds, pi_command, offset_lean_frame, servo_frame);
+  serialHandler.HandleSerialEvent(inputBuffer, bufferPos, process_stream_control, pi_command, offset_lean_frame, servo_frame);
+  //serialHandler.HandleSerialEvent(inputBuffer, bufferPos, control_speeds, pi_command, offset_lean_frame, servo_frame);
 }
 
 void parseSpeeds(PI_COMMAND pi_command, double &V, double &Vn, double&W){

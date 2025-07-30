@@ -13,7 +13,7 @@ using namespace std;
 #define STD_SPEED_RAD 0.8 // rad/s
 #define SPEED_LAST_EDITION 30 //0.02 //1.149822906 // 2.299645812 // rad/s
 
-#define VELOCITY_THRESH 0.001 // m/s
+#define VELOCITY_THRESH 0.0 // 0.001 // m/s
 #define GAIT_STOP_TIME_MILLIS 100
 #define STD_MAX_STEP_H 0.015 // meters
 #define FRNT_LEGS_X_OFFSET    Eigen::Vector3d(0.05,0.0,0.0) // meters
@@ -136,17 +136,30 @@ Eigen::Vector3d Spot::getFootPosition(int Leg){
 }
 
 Eigen::Vector3d Spot::getEstimatedFootPosition(int leg){
-    double angles[NUM_JOINTS];
-    Eigen::Vector3d pos_hip, pos_body;
+    // double angles[NUM_JOINTS];
+    // Eigen::Vector3d pos_hip, pos_body;
 
+    // for(int i = 0; i < NUM_JOINTS; i++){
+    //     angles[i] = Servo_List[leg * 3 + i].GetPoseEstimateRad();
+    // }
+
+    // model.FK_singular(angles, leg, pos_hip);
+    // model.HipToBodyV(leg, pos_hip, pos_body);
+
+    // return pos_body;
+
+    double angles[NUM_JOINTS];
     for(int i = 0; i < NUM_JOINTS; i++){
         angles[i] = Servo_List[leg * 3 + i].GetPoseEstimateRad();
     }
+    LegQuadrant side = (leg == 0 || leg == 2) ? Right : Left; // FR, RR
+    
+    Eigen::Vector3d pHip;
+    model.FK_singular(angles, side, pHip);
+    Eigen::Vector3d pBody;
+    model.HipToBodyV(leg, pHip, pBody); // <- your transform
 
-    model.FK_singular(angles, leg, pos_hip);
-    model.HipToBodyV(leg, pos_hip, pos_body);
-
-    return pos_body;
+    return pBody;
 }
 
 double Spot::move_feet(Eigen::Vector3d vectors[NUM_LEGS], double max_speed){ // TODO Still using old IK and old speed calc
@@ -517,6 +530,13 @@ void Spot::generatePath(Eigen::Vector3d (&outputPathPoints)[GAIT_PATH_FRAMES], E
         DEBUG_I(",%f,%f,%f", outputPathPoints[i].x(), outputPathPoints[i].y(), outputPathPoints[i].z());
     }
 }
+
+void Spot::printPathPointsPattern(){
+    for (int i = 0; i < GAIT_PATH_FRAMES; i++){
+        DEBUG_I(",%f,%f,%f", gaitPathPoints[i].x(), gaitPathPoints[i].y(), gaitPathPoints[i].z());
+    }
+}
+
 Eigen::Vector3d Spot::rotateZToAlign(Eigen::Vector3d& V, Eigen::Vector3d& vReference) {
   // Calculate angle to align V1.xy to Vr.xy
   double theta = atan2(vReference.y(), vReference.x());
@@ -583,6 +603,15 @@ void Spot::computeFeetVelocities(Eigen::Vector3d (&velocities)[NUM_LEGS], double
 
         // DEBUG_I(",%f,%f,%f", Vt * sin(Rth), Vt * cos(Rth), 0.0);
     }
+}
+
+void Spot::printFootPos(int leg, int counter){
+    Eigen::Vector3d footPosition1 = getFootPosition(leg);
+    Eigen::Vector3d footPosition2 = getEstimatedFootPosition(leg);
+    DEBUG_I(",%d,%f, %f, %f,REAL:,%f, %f, %f",
+        counter,
+        footPosition1[0], footPosition1[1], footPosition1[2],
+        footPosition2[0], footPosition2[1], footPosition2[2]);
 }
 
 bool Spot::performDynamicGait2(double &currTimeMillis, Eigen::Vector3d Velocities[NUM_LEGS]){
@@ -956,6 +985,10 @@ bool Spot::performDynamicGait(double &currTimeMillis, Eigen::Vector3d Velocities
     //  ↳done in main loop !!
 
     return true;  
+}
+void Spot::stopDynamicGait(double &currTime){
+    this->gaitState.new_state = IDLE_GAIT;
+    setState(this->gaitState, currTime);
 }
 
 bool Spot::setState(fsm_t &stateMachine, double &currTimeMillis){

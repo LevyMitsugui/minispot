@@ -86,7 +86,7 @@ class ControlHolo:
     def blindForward(self, speed):
         self.robotV  = speed
         self.robotVn = 0.0
-        self.robotW  = 0.0
+        self.robotW  = 0.362
 
     def blindBackward(self, speed):
         self.robotV  = -speed

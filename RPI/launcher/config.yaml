@@ -30,3 +30,11 @@ ControlHolo:
     --sub-port:   5000
   flags:
     verbose: false
+
+CameraPose:
+  enabled: false
+  args:
+    --pub-socket: "/tmp/pub_camera_pose.socket"
+  flags:
+    verbose: false
+    show: false
